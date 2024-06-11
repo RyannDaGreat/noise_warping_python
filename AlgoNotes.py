@@ -17,8 +17,8 @@ def calculate_subpixel_weights(x, y):
     
     Checked: THIS FUNCTION IS CORRECT (checked via demo_query_image_at_points)
     """
-    assert x.ndim == 1, 'x should be a tensor'
-    assert y.ndim == 1, 'y should be a tensor'
+    assert x.ndim == 1, 'x should be a vector'
+    assert y.ndim == 1, 'y should be a vector'
     assert len(x) == len(y), "x and y must have the same length"
 
     fx = x.floor().long()
@@ -53,8 +53,8 @@ def query_image_at_points(image, x, y):
     Checked: THIS FUNCTION IS CORRECT (checked via demo_query_image_at_points)
     """
     assert image.ndim == 3, "image must be in CHW format"
-    assert x.ndim == 1, 'x should be a tensor'
-    assert y.ndim == 1, 'y should be a tensor'
+    assert x.ndim == 1, 'x should be a vector'
+    assert y.ndim == 1, 'y should be a vector'
     assert len(x) == len(y), "x and y must have the same length"
 
     c, h, w = image.shape
@@ -151,7 +151,7 @@ def prepend_zeros(tensor, dim):
     )
 
 
-class CumulativeTexture:
+class IntegralTexture:
     def __init__(self, tex):
         """
         Texture is given in CHW form
@@ -171,7 +171,7 @@ class CumulativeTexture:
         cum_tex=tex
         cum_tex=prepend_zeros(cum_tex, h_dim)
         cum_tex=prepend_zeros(cum_tex, w_dim)
-        cum_tex=tex.cumsum(h_dim).cumsum(w_dim)
+        cum_tex=cum_tex.cumsum(h_dim).cumsum(w_dim)
         self.cum_tex=cum_tex
 
         #The cum_tex has one extra row and column, so its height and width each one more than that of tex
@@ -200,10 +200,10 @@ class CumulativeTexture:
         The bounds can be any real number - they wrap around the texture continuously
         """
 
-        assert x0.ndim == 1, 'x0 should be a tensor'
-        assert y0.ndim == 1, 'y0 should be a tensor'
-        assert x1.ndim == 1, 'x1 should be a tensor'
-        assert y1.ndim == 1, 'y1 should be a tensor'
+        assert x0.ndim == 1, 'x0 should be a vector'
+        assert y0.ndim == 1, 'y0 should be a vector'
+        assert x1.ndim == 1, 'x1 should be a vector'
+        assert y1.ndim == 1, 'y1 should be a vector'
         assert len(x0) == len(y0) == len(x1) == len(y1), "x0, y0, x1, y1 must all have the same length"
 
         #Expensive assertions:
@@ -211,6 +211,8 @@ class CumulativeTexture:
         #It's possible to get a negative integral with this and thus a negative area otherwise...
         assert (y0<=y1).all()
         assert (x0<=x1).all()
+        #x0, x1 = torch.minimum(x0,x1), torch.maximum(x0,x1)
+        #y0, y1 = torch.minimum(y0,y1), torch.maximum(y0,y1)
 
         c,h,w=self.tex.shape
         n=len(x0)
@@ -232,6 +234,10 @@ class CumulativeTexture:
         dy =y1 -x0
         dxq=x1q-x0q
         dyq=y1q-y0q
+        
+        #Duplicate height and width across vectors
+        xw = x0*0+w
+        yh = x0*0+h
 
         #Calculating area is trivial
         area = dy*dx
@@ -242,13 +248,13 @@ class CumulativeTexture:
         #If this is a bottleneck, we can inline down to calculate_subpixel_weights to eliminate duplicate calculations
         s=self.cumsum
         sum = (
-            +s(x1r, y1r)     +s(w, y1r)*dxq     -s(x0r, y1r)     \
-            -s(x1r, h  )*dyq +s(w, h  )*dxq*dyq -s(x0r, h  )*dyq \
-            -s(x1r, y0r)     -s(w, y0r)*dxq     +s(x0r, y0r)     
+            +s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)     \
+            -s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq \
+            -s(x1r, y0r)     -s(xw, y0r)*dxq     +s(x0r, y0r)     
         )
 
-        assert sum.shape ==(n,c)
-        assert area.shape==(n, )
+        assert sum.shape ==(c,n,)
+        assert area.shape==(  n,)
 
         return sum, area
 
@@ -272,6 +278,8 @@ def sort_xy_by_y(*xys):
         #   [3 1 1]
         #   [4 5 3]
         #   [6 4 2]]
+
+    Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
     """
 
     assert xys, "Must provide at least one point-list"
@@ -298,3 +306,162 @@ def sort_xy_by_y(*xys):
     ys_sorted = torch.gather(ys, 0, i)
 
     return list(itertools.chain(*zip(xs_sorted, ys_sorted)))
+
+def demo_integral_texture():
+    """
+    EXAMPLE OUTPUT:
+        FIRST TEST. Remember, image[:,y,x] not image[:,x,y]!
+        tensor([214.4391, 220.3378, 223.2823])
+        tensor([[214.4392],
+                [220.3378],
+                [223.2823]])
+        SECOND TEST: Just written a bit differently this time...
+        Testing when x0 and y0 are 0 (aka integrate from corner)
+        ic| tex.cum_tex[0,y1,x1]: tensor(732.9133)
+        ic| tex.tex[0,:y1,:x1].sum(): tensor(732.9133)
+        ic| tex.cumsum(torch.tensor([x1]), torch.tensor([y1]))[0, 0]: tensor(732.9133)
+        ic| tex.integral(
+                torch.tensor([0]),
+                torch.tensor([0]),
+                torch.tensor([x1]),
+                torch.tensor([y1]),
+            )[0][0,0]: tensor(732.9133)
+        Testing when x0 and y0 are 0 (aka integrating a rectangle)
+        ic| tex.tex[0,y0:y1,x0:x1].sum(): tensor(267.9160)
+        ic| tex.integral(
+                torch.tensor([x0]),
+                torch.tensor([y0]),
+                torch.tensor([x1]),
+                torch.tensor([y1]),
+            )[0][0,0]: tensor(267.9159)
+        Wrapping tests...
+        These should increase by the same amount each...
+        But when we shift both bounds by the same amount it shouldnt change...
+        Right now I did the math manually. It checks out.
+        ic| "Testing x bounds...": 'Testing x bounds...'
+            tex_integral_test(33 - 200, 22, 55 - 200, 44): tensor(246.5096)
+            tex_integral_test(33 - 100, 22, 55 - 100, 44): tensor(246.5096)
+            tex_integral_test(33, 22, 55, 44): tensor(246.5096)
+            tex_integral_test(33, 22, 55 + 100, 44): tensor(1349.7982)
+            tex_integral_test(33, 22, 55 + 200, 44): tensor(2453.0874)
+        ic| "Testing y bounds...": 'Testing y bounds...'
+            tex_integral_test(22, 33 - 200, 44, 55 - 200): tensor(249.0453)
+            tex_integral_test(22, 33 - 100, 44, 55 - 100): tensor(249.0453)
+            tex_integral_test(22, 33, 44, 55): tensor(249.0453)
+            tex_integral_test(22, 33, 44, 55 + 100): tensor(-3045.3459)
+            tex_integral_test(22, 33, 44, 55 + 200): tensor(-6339.7373)
+         >>> 2453.0874-1349.7982
+        ans = 1103.2892
+         >>> 1349.7982-246.5096
+        ans = 1103.2885999999999
+        #Good, they're the same...
+    """
+
+
+
+    print('FIRST TEST. Remember, image[:,y,x] not image[:,x,y]!')
+    image=torch.rand(3,100,100)
+
+    x0=torch.tensor(random_ints(10,0,100))
+    x1=torch.tensor(random_ints(10,0,100))
+    y0=torch.tensor(random_ints(10,0,100))
+    y1=torch.tensor(random_ints(10,0,100))
+
+    #Make sure they're all valid rectangles...
+    x0,x1 = torch.minimum(x0,x1), torch.maximum(x0,x1)
+    y0,y1 = torch.minimum(y0,y1), torch.maximum(y0,y1)
+
+    i=random_index(10)
+    print(
+        image[
+            :,
+            y0[i] : y1[i],
+            x0[i] : x1[i],
+        ].sum((1,2))
+    )
+
+
+    tex=IntegralTexture(image)
+    print(
+        tex.integral(
+            x0[i][None],
+            y0[i][None],
+            x1[i][None],
+            y1[i][None],
+        )[0]
+    )
+
+    print('SECOND TEST: Just written a bit differently this time...')
+    from icecream import ic
+    print("Testing when x0 and y0 are 0 (aka integrate from corner)")
+    x1=33
+    y1=44
+    ic(tex.cum_tex[0,y1,x1])
+    ic(tex.tex[0,:y1,:x1].sum())
+    ic(tex.cumsum(torch.tensor([x1]), torch.tensor([y1]))[0, 0])
+    ic(
+        tex.integral(
+            torch.tensor([0]),
+            torch.tensor([0]),
+            torch.tensor([x1]),
+            torch.tensor([y1]),
+        )[0][0,0]
+    )
+
+    print("Testing when x0 and y0 are 0 (aka integrating a rectangle)")
+    x0=10
+    y0=20
+    ic(tex.tex[0,y0:y1,x0:x1].sum())
+    ic(
+        tex.integral(
+            torch.tensor([x0]),
+            torch.tensor([y0]),
+            torch.tensor([x1]),
+            torch.tensor([y1]),
+        )[0][0,0]
+    )
+
+
+    def tex_integral_test(x0, y0, x1, y1):
+        return tex.integral(
+            torch.tensor([x0]),
+            torch.tensor([y0]),
+            torch.tensor([x1]),
+            torch.tensor([y1]),
+        )[0][0, 0]
+
+    print("Wrapping tests...")
+    print("These should increase by the same amount each...")
+    print("But when we shift both bounds by the same amount it shouldnt change...")
+    print("Right now I did the math manually. It checks out.")
+    ic(
+        "Testing x bounds...",
+        tex_integral_test(33 - 200, 22, 55 - 200, 44),
+        tex_integral_test(33 - 100, 22, 55 - 100, 44),
+        tex_integral_test(33, 22, 55, 44),
+        tex_integral_test(33, 22, 55 + 100, 44),
+        tex_integral_test(33, 22, 55 + 200, 44),
+    )
+    ic(
+        "Testing y bounds...",
+        tex_integral_test(22, 33 - 200, 44, 55 - 200),
+        tex_integral_test(22, 33 - 100, 44, 55 - 100),
+        tex_integral_test(22, 33, 44, 55),
+        tex_integral_test(22, 33, 44, 55 + 100),
+        tex_integral_test(22, 33, 44, 55 + 200),
+    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
