@@ -39,6 +39,7 @@ def calculate_subpixel_weights(x, y):
 def query_image_at_points(image, x, y):
     """
     Queries points on an image using bilinear interpolation
+    Image wraps around at the edges
     Inputs:
         image: CHW
         x: tensor of length N
@@ -127,22 +128,107 @@ def demo_query_image_at_points():
 
 
 
+def prepend_zeros(tensor, dim):
+    """
+    Prepends a single layer of zeros to the tensor along the specified dimension.
+
+    Args:
+        tensor (torch.Tensor): The input tensor.
+        dim (int): Dimension along which to prepend zeros.
+
+    Returns:
+        torch.Tensor: The tensor with a layer of zeros prepended along the specified dimension.
+    """
+    return torch.cat(
+        (
+            torch.zeros_like(tensor.select(dim, 0).unsqueeze(dim)),
+            tensor
+        ),
+        dim=dim
+    )
+
+
 class CumulativeTexture:
     def __init__(self, tex):
         """
-        Texture is given in HWC form
+        Texture is given in CHW form
         """
-        self.tex=tex
+        assert tex.ndim == 3, "tex must be in CHW format"
+
+        #We are using CHW form
+        h_dim = 1
+        w_dim = 2
+
         
+        self.tex=tex
+        self.height=tex.shape[h_dim]
+        self.width =tex.shape[w_dim]
+        
+        #Add zeros rows/columns to the texture
         cum_tex=tex
+        cum_tex=prepend_zeros(cum_tex, h_dim)
+        cum_tex=prepend_zeros(cum_tex, w_dim)
+        cum_tex=tex.cumsum(h_dim).cumsum(w_dim)
+        self.cum_tex=cum_tex
 
-        #Add a zeros row and column to the texture
-        cum_tex=torch.concat((cum_tex[0][None]*0,cum_tex))
-        cum_tex=torch.concat((cum_tex[:,0][:,None]*0,cum_tex))
+        #The cum_tex has one extra row and column, so its height and width each one more than that of tex
+        assert self.cum_tex.shape[h_dim]==self.height+1
+        assert self.cum_tex.shape[w_dim]==self.width +1
 
-        cum_tex=np.hstack(cum_tex[0]*0)
-        cum_tex=tex.cumsum(0).cumsum(1)
-        cum_tex=
+    def cumsum(self, x, y):
+        """
+        When x and y are ints, should be equivalent to self.tex[:x,:y].sum((1,2))
+        When floating point, should interpolate
+        Assumes x and y are in-bounds
+        """
+
+        #Expensive assertions:
+        assert (x>=0         ).all()
+        assert (y>=0         ).all()
+        assert (x<=self.width).all()
+        assert (y<=self.width).all()
+
+        return query_image_at_points(self.cum_tex, x, y)
+
+    def integral(self, x0, y0, x1, y1):
+        """
+        Integrates our given texture continuously in the given bounds
+        Returns (sum, area)
+        The bounds can be any real number - they wrap around the texture continuously
+        """
+        assert x0.ndim == 1, 'x0 should be a tensor'
+        assert y0.ndim == 1, 'y0 should be a tensor'
+        assert x1.ndim == 1, 'x1 should be a tensor'
+        assert y1.ndim == 1, 'y1 should be a tensor'
+        assert len(x0) == len(y0) == len(x1) == len(y1), "x0, y0, x1, y1 must all have the same length"
+
+        #Expensive assertions:
+        #If I make bugs elsewhere, I might just sort x0,x1 and sort y0,y1...
+        #It's possible to get a negative integral with this and thus a negative area otherwise...
+        assert (y0<=y1).all()
+        assert (x0<=x1).all()
+
+
+
+
+
+        #Returns sum, area
+
+
+
+        assert x
+
+        #TODO: We took away assertions that x0<=width-1 etc in the demo_query_image_at_points func
+        #      that needs to be taken care of here - they are internal assertions for the cumtex
+
+
+
+
+
+
+
+
+
 
 
 
