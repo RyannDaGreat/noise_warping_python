@@ -453,7 +453,23 @@ def demo_integral_texture():
 
 
 
+def htraps_to_inner_rects(y0, y1, xl0, xr0, xl1, xr1):
+    assert y0 .ndim==1, 'y0  should be a vector. Aka bot y.'
+    assert y1 .ndim==1, 'y1  should be a vector. Aka top y.'
+    assert xl0.ndim==1, 'xl0 should be a vector. Aka bot left x.'
+    assert xr0.ndim==1, 'xr0 should be a vector. Aka bot right x.'
+    assert xl1.ndim==1, 'xl1 should be a vector. Aka top left x.'
+    assert xr1.ndim==1, 'xr1 should be a vector. Aka top right x.'
+    assert len(set(map(len,[y0, y1, xl0, xr0, xl1, xr1])))==1, "They should all have same length"
+    
+    #Expensive assertions. Might replace y0/y1 if my code is too buggy...
+    assert (y0 <=y1 ).all()
+    assert (xl0<=xr0).all()
+    assert (xl1<=xr1).all()
 
+
+
+    
 
 
 
