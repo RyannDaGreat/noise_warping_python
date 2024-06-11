@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import itertools
 
 def calculate_subpixel_weights(x, y):
     """
@@ -92,10 +93,6 @@ def demo_query_image_at_points():
     Checked: THIS FUNCTION IS WORKS CORRECTLY (inspected visually)
     """
     import torch
-    import torch.nn.functional as F
-    from PIL import Image
-    import requests
-    from io import BytesIO
     import matplotlib.pyplot as plt
     import rp
 
@@ -257,4 +254,47 @@ class CumulativeTexture:
 
 
 
+def sort_xy_by_y(*xys):
+    """
+    Signature: sort_xy_by_y(x1,y1,x2,y2, ..., xk,yk)
+    Given a set of 2d x,y coordinates, return a new x0,y0,x1,y1 such that y0<=y1 for all points
+    Assumes they are all torch tensors
 
+    EXAMPLE:
+        x0 = torch.tensor([1, 2, 3])
+        y0 = torch.tensor([3, 1, 2])
+        x1 = torch.tensor([4, 5, 6])
+        y1 = torch.tensor([6, 4, 1])
+        sx0, sy0, sx1, sy1 = sort_xy_by_y(x0, y0, x1, y1)
+        print(as_numpy_array([sx0, sy0, sx1, sy1]))
+        # OUTPUT:
+        #  [[1 2 6]
+        #   [3 1 1]
+        #   [4 5 3]
+        #   [6 4 2]]
+    """
+
+    assert xys, "Must provide at least one point-list"
+    assert not len(xys)%2, "Number of args must be even, because each x must have a y. See docstring."
+
+    xs=xys[0::2]
+    ys=xys[1::2]
+
+    assert all(x.ndim==1 for x in xs)
+    assert all(y.ndim==1 for y in ys)
+    assert len(set(map(len,xys)))==1, "All point-lists must have the same number of points"
+
+    k=len(xys)//2 #Number of point-lists
+    n=len(xys[0]) #Number of points per point-list
+
+    xs=torch.stack(xs)
+    ys=torch.stack(ys)
+    assert xs.shape==ys.shape
+    assert xs.shape==ys.shape==(k,n)
+
+    i = torch.argsort(ys, dim=0)
+    
+    xs_sorted = torch.gather(xs, 0, i)
+    ys_sorted = torch.gather(ys, 0, i)
+
+    return list(itertools.chain(*zip(xs_sorted, ys_sorted)))
