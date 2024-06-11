@@ -453,20 +453,51 @@ def demo_integral_texture():
 
 
 
-def htraps_to_inner_rects(y0, y1, xl0, xr0, xl1, xr1):
-    assert y0 .ndim==1, 'y0  should be a vector. Aka bot y.'
-    assert y1 .ndim==1, 'y1  should be a vector. Aka top y.'
-    assert xl0.ndim==1, 'xl0 should be a vector. Aka bot left x.'
-    assert xr0.ndim==1, 'xr0 should be a vector. Aka bot right x.'
-    assert xl1.ndim==1, 'xl1 should be a vector. Aka top left x.'
-    assert xr1.ndim==1, 'xr1 should be a vector. Aka top right x.'
-    assert len(set(map(len,[y0, y1, xl0, xr0, xl1, xr1])))==1, "They should all have same length"
-    
-    #Expensive assertions. Might replace y0/y1 if my code is too buggy...
-    assert (y0 <=y1 ).all()
-    assert (xl0<=xr0).all()
-    assert (xl1<=xr1).all()
+def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
+    """
+    Gets the bounds of a rectangle inscribed entirely in a trapezoid who has two edges parallel to the x-axis (aka an htrap)
+    Convention in this func: Lower y == bottom, higher y == top
+    (Regardless of image space vs cartesian space etc)
+    yb corresponds to y0 in other funcs
+    yt corresponds to y1 in other funcs
+    Returns y0, y1, x0, x1
+    """
 
+    assert yb .ndim==1, 'yb  should be a vector. Aka bot y.'
+    assert yt .ndim==1, 'yt  should be a vector. Aka top y.'
+    assert xbl.ndim==1, 'xbl should be a vector. Aka bot left x.'
+    assert xbr.ndim==1, 'xbr should be a vector. Aka bot right x.'
+    assert xtl.ndim==1, 'xtl should be a vector. Aka top left x.'
+    assert xtr.ndim==1, 'xtr should be a vector. Aka top right x.'
+    assert len(set(map(len,[yb, yt, xbl, xbr, xtl, xtr])))==1, "They should all have same length"
+    n = len(yb)
+    
+    #Expensive assertions. Might replace yb/yt if my code is too buggy...
+    assert (yb <=yt ).all()
+    assert (xbl<=xbr).all()
+    assert (xtl<=xtr).all()
+
+    #o stands for output
+
+    #Output bounds:
+    y0=yb #The bot bound
+    y1=yt #The top bound
+
+    x0=torch.maximum(xtl, xbl)
+    x1=torch.minimum(xtr, xbr)
+    
+    #Don't have negative area: x0 can never be larger than x1
+    #This might happen if a given trapezoid is skewed enough
+    #In this case, collapse x0 and x1 to their mean
+    xμ=(x0+x1)/2
+    x0=torch.minimum(x0, xμ)
+    x1=torch.maximum(x1, xμ)
+    
+    assert (x0<=x1).all(), "Internal assertion that should never fail"
+    assert (y0<=y1).all(), "Internal assertion that should never fail"
+    assert x0.shape==x1.shape==y0.shape==y1.shape==(n,)
+
+    return y0, y1, x0, x1
 
 
     
