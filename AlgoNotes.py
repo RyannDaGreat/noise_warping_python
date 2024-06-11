@@ -13,6 +13,8 @@ def calculate_subpixel_weights(x, y):
         w1, w2, w3, w4: subpixel weights
     This function's math is explained here: 
         https://www.desmos.com/calculator/esool5qrrd
+    
+    Checked: THIS FUNCTION IS CORRECT (checked via demo_query_image_at_points)
     """
     assert x.ndim == 1, 'x should be a tensor'
     assert y.ndim == 1, 'y should be a tensor'
@@ -46,6 +48,8 @@ def query_image_at_points(image, x, y):
         y: tensor of length N
     Returns:
         output: CN
+
+    Checked: THIS FUNCTION IS CORRECT (checked via demo_query_image_at_points)
     """
     assert image.ndim == 3, "image must be in CHW format"
     assert x.ndim == 1, 'x should be a tensor'
@@ -84,6 +88,8 @@ def demo_query_image_at_points():
     Demo for query_image_at_points
     It upscales an image and shows a side-by-side
     Note how the pixels should wrap
+
+    Checked: THIS FUNCTION IS WORKS CORRECTLY (inspected visually)
     """
     import torch
     import torch.nn.functional as F
@@ -196,6 +202,7 @@ class CumulativeTexture:
         Returns (sum, area)
         The bounds can be any real number - they wrap around the texture continuously
         """
+
         assert x0.ndim == 1, 'x0 should be a tensor'
         assert y0.ndim == 1, 'y0 should be a tensor'
         assert x1.ndim == 1, 'x1 should be a tensor'
@@ -208,24 +215,45 @@ class CumulativeTexture:
         assert (y0<=y1).all()
         assert (x0<=x1).all()
 
+        c,h,w=self.tex.shape
+        n=len(x0)
 
+        #Remainders
+        x0r=x0%w
+        x1r=x1%w
+        y0r=y0%h
+        y1r=y1%h
 
+        #Quotients
+        x0q=x0//w
+        x1q=x1//w
+        y0q=y0//h
+        y1q=y1//h
 
+        #Deltas
+        dx =x1 -x0
+        dy =y1 -x0
+        dxq=x1q-x0q
+        dyq=y1q-y0q
 
-        #Returns sum, area
+        #Calculating area is trivial
+        area = dy*dx
 
+        #This is based on the following fact, extended to 2d:
+        #    ∀ a,b ∈ ℝ : a - b = (a % 1) + (⌊a⌋ - ⌊b⌋) - (b % 1)
+        #    I have drawings in my notes about this. Sorry future reader lol. Maybe one day I'll draw it in unicode for you.
+        #If this is a bottleneck, we can inline down to calculate_subpixel_weights to eliminate duplicate calculations
+        s=self.cumsum
+        sum = (
+            +s(x1r, y1r)     +s(w, y1r)*dxq     -s(x0r, y1r)     \
+            -s(x1r, h  )*dyq +s(w, h  )*dxq*dyq -s(x0r, h  )*dyq \
+            -s(x1r, y0r)     -s(w, y0r)*dxq     +s(x0r, y0r)     
+        )
 
+        assert sum.shape ==(n,c)
+        assert area.shape==(n, )
 
-        assert x
-
-        #TODO: We took away assertions that x0<=width-1 etc in the demo_query_image_at_points func
-        #      that needs to be taken care of here - they are internal assertions for the cumtex
-
-
-
-
-
-
+        return sum, area
 
 
 
