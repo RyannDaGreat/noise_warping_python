@@ -830,3 +830,62 @@ def demo_triangle_to_htraps_to_rects():
 
     # Show the plot
     plt.show()
+
+
+def tris_to_rects(w, ax, ay, bx, by, cx, cy):
+    """
+    Given triangles, gives rectangles that approximate them both vertically and horizontally
+    Checked: THIS FUNCTION IS CORRECT (checked via demo_tris_to_rects visually)
+    """
+
+    def helper(ax, ay, bx, by, cx, cy):
+        yb, yt, xbl, xbr, xtl, xtr = tris_to_htraps(ax, ay, bx, by, cx, cy)
+        oyb, oyt, oxbl, oxbr, oxtl, oxtr = subdivide_htraps(w, yb, yt, xbl, xbr, xtl, xtr)
+        y0, y1, x0, x1 = htraps_to_inner_rects(oyb, oyt, oxbl, oxbr, oxtl, oxtr)
+        return y0, y1, x0, x1
+
+    Hy0, Hy1, Hx0, Hx1 = helper(ax, ay, bx, by, cx, cy) #From h-traps
+    Vx0, Vx1, Vy0, Vy1 = helper(ay, ax, by, bx, cy, cx) #From v-traps: just use the h-trap algo and transpose x and y twice
+
+    y0 = torch.cat((Hy0, Vy0))
+    y1 = torch.cat((Hy1, Vy1))
+    x0 = torch.cat((Hx0, Vx0))
+    x1 = torch.cat((Hx1, Vx1))
+
+    return y0, y1, x0, x1
+
+
+def demo_tris_to_rects():
+    # Generate random triangle vertices
+    n = 1
+    ax = torch.rand(n)
+    ay = torch.rand(n)
+    bx = torch.rand(n)
+    by = torch.rand(n)
+    cx = torch.rand(n)
+    cy = torch.rand(n)
+
+    # Randomly choose w between 1 and 20
+    w = np.random.randint(1, 21)
+
+    # Get the inscribed rectangle bounds for each subdivided htrap
+    y0, y1, x0, x1 = tris_to_rects(w, ax, ay, bx, by, cx, cy)
+
+    # Create a figure and axis
+    fig, plt_ax = plt.subplots()
+
+    # Plot the triangle
+    plt_ax.plot([ax.item(), bx.item(), cx.item(), ax.item()], [ay.item(), by.item(), cy.item(), ay.item()], 'b-')
+
+    # Plot the inscribed rectangles
+    for i in range(len(y0)):
+        plt_ax.plot([x0[i].item(), x1[i].item()], [y0[i].item(), y0[i].item()], 'g-')  # Bottom edge
+        plt_ax.plot([x0[i].item(), x1[i].item()], [y1[i].item(), y1[i].item()], 'g-')  # Top edge
+        plt_ax.plot([x0[i].item(), x0[i].item()], [y0[i].item(), y1[i].item()], 'g-')  # Left edge
+        plt_ax.plot([x1[i].item(), x1[i].item()], [y0[i].item(), y1[i].item()], 'g-')  # Right edge
+
+    # Set equal aspect ratio
+    plt_ax.set_aspect('equal')
+
+    # Show the plot
+    plt.show()
