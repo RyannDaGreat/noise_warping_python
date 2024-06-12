@@ -1177,7 +1177,7 @@ def uv_mapping_demo():
     tic()
 
     #My anisotropic filtering
-    w = 10 #Profile this as w goes up
+    w = 1 #Profile this as w goes up
     # y0, y1, x0, x1 = quads_to_rects(
     #     w  = w, 
     #     x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
@@ -1196,12 +1196,12 @@ def uv_mapping_demo():
         w  = w, 
         x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
         y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-        x1 = einops.rearrange(au+10, 'OH OW -> (OH OW)'), 
+        x1 = einops.rearrange(au+2, 'OH OW -> (OH OW)'), 
         y1 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-        x2 = einops.rearrange(au+10, 'OH OW -> (OH OW)'), 
-        y2 = einops.rearrange(av+10, 'OH OW -> (OH OW)'), 
+        x2 = einops.rearrange(au+2, 'OH OW -> (OH OW)'), 
+        y2 = einops.rearrange(av+2, 'OH OW -> (OH OW)'), 
         x3 = einops.rearrange(au, 'OH OW -> (OH OW)'),
-        y3 = einops.rearrange(av+10, 'OH OW -> (OH OW)'), 
+        y3 = einops.rearrange(av+2, 'OH OW -> (OH OW)'), 
     )
     
     
