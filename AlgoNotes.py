@@ -640,6 +640,7 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
 def demo_subdivide_htrap_rects():
     "A combined demo of both htraps_to_inner_rects and htraps_to_inner_rects. Cool visuals!"
     # Generate random htrap bounds
+    import numpy as np
     n = 1
     yb = torch.rand(n)
     yt = yb + torch.rand(n) * 0.5
@@ -797,6 +798,7 @@ def demo_triangles_to_htraps():
     plt.show()
 
 def demo_triangle_to_htraps_to_rects():
+    import numpy as np
     # Generate random triangle vertices
     n = 1
     ax = torch.rand(n)
@@ -871,6 +873,7 @@ def tris_to_rects(w, ax, ay, bx, by, cx, cy):
 
 def demo_tris_to_rects():
     # Generate random triangle vertices
+    import numpy as np
     n = 1
     ax = torch.rand(n)
     ay = torch.rand(n)
@@ -910,11 +913,11 @@ def uv_mapping_demo():
     import rp
 
     uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
-    uvl_image = resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
 
-    device=select_torch_device(prefer_used=True)
+    device=rp.select_torch_device(prefer_used=True)
 
     uvl_image     = rp.as_torch_image(uvl_image    ).to(device)
     texture_image = rp.as_torch_image(texture_image).to(device)
