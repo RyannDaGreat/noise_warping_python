@@ -1,3 +1,4 @@
+from collections import abc
 import torch
 import torch.nn.functional as F
 import itertools
@@ -895,3 +896,67 @@ def demo_tris_to_rects():
 
     # Show the plot
     plt.show()
+
+
+
+def uv_mapping_demo():
+    import rp
+
+    uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
+    uvl_image = resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+    texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
+
+    device=select_torch_device(prefer_used=True)
+
+    uvl_image     = rp.as_torch_image(uvl_image    ).to(device)
+    texture_image = rp.as_torch_image(texture_image).to(device)
+    C,TH,TW = texture_image.shape
+
+    u=uvl_image[0,:,:]
+    v=uvl_image[1,:,:]
+
+    #We will use two triangles:
+    #a  b
+    #
+    #c  d
+    #
+    #abc and bcd
+
+    au=u[:-1,:-1]*TW
+    av=v[:-1,:-1]*TH
+
+    bu=u[:-1,1: ]*TW
+    bv=v[:-1,1: ]*TH
+
+    cu=u[1: ,:-1]*TW
+    cv=v[1: ,:-1]*TH
+
+    du=u[1: ,1: ]*TW
+    dv=v[1: ,1: ]*TH
+
+    OH,OW=au.shape
+
+    output = torch.zeros(C,OH,OW).to(device)
+
+    tex = IntegralTexture(texture_image)
+
+    y,x = torch.meshgrid(torch.arange(OH),torch.arange(OW))
+
+    x=x.flatten().to(device)
+    y=y.flatten().to(device)
+
+    output[:,y,x] = query_image_at_points(
+        texture_image,
+        au[y,x],
+        av[y,x],
+    )
+    
+    
+
+    return output
+
+
+
+
+
