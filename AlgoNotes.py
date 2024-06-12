@@ -462,7 +462,7 @@ def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
     yb corresponds to y0 in other funcs
     yt corresponds to y1 in other funcs
     Returns y0, y1, x0, x1
-    Checked: THIS FUNCTION IS CORRECT (checked via demo_htraps_to_inner_rects visually)
+    Checked: THIS FUNCTION IS CORRECT (checked via demo_htraps_to_inner_rects and demo_subdivide_htrap_rects visually)
     """
 
     assert yb .ndim==1, 'yb  should be a vector. Aka bot y.'
@@ -549,15 +549,24 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     Uses same naming conventions as htraps_to_inner_rects (see its docstring)
     If we need to optimize memory, we could avoid storing the duplicate coordinates here...
     I assume you'll be using these h-traps to generate rectangles and integrate, so I'll just keep the output flat...
+    Checked: THIS FUNCTION IS CORRECT (checked via demo_subdivide_htrap_rects visually)
     """
 
     #For now I assume they're all the same device/dtype. Maybe I'll add an assertion sometime later.
     dtype  = yb.dtype
     device = yb.device
 
-    ys  = torch.linspace(yb ,yt ,w+1).to(device).to(dtype)
-    xls = torch.linspace(xbl,xtl,w+1).to(device).to(dtype)
-    xrs = torch.linspace(xbr,xtr,w+1).to(device).to(dtype)
+    assert yb.ndim == xbl.ndim == xbr.ndim == yt.ndim == xtl.ndim == xtr.ndim == 1
+    assert len(yb) == len(xbl) == len(xbr) == len(yt) == len(xtl) == len(xtr)
+    n = len(yb)  # Get the number of htraps
+
+    alphas = torch.linspace(0, 1, w+1).to(device).to(dtype)
+    alphas=alphas[None]
+    betas  = 1-alphas
+
+    ys  = (yb  * betas + yt  * alphas).flatten()
+    xls = (xbl * betas + xtl * alphas).flatten()
+    xrs = (xbr * betas + xtr * alphas).flatten()
 
     #o stands for output
     oyb =ys [ :-1]
@@ -567,14 +576,54 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     oxtl=xls[1:  ]
     oxtr=xrs[1:  ]
 
-    assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape== \
-            yb.shape== xbl.shape== xbr.shape== yt.shape== xtl.shape== xtr.shape
+    assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape==(w*n,)
 
     return oyb, oyt, oxbl, oxbr, oxtl, oxtr
 
 
 
+def demo_subdivide_htrap_rects():
+    "A combined demo of both htraps_to_inner_rects and htraps_to_inner_rects. Cool visuals!"
+    # Generate random htrap bounds
+    n = 1
+    yb = torch.rand(n)
+    yt = yb + torch.rand(n) * 0.5
+    xbl = torch.rand(n)
+    xbr = xbl + torch.rand(n) * 0.5
+    xtl = torch.rand(n)
+    xtr = xtl + torch.rand(n) * 0.5
 
+    # Randomly choose w between 1 and 20
+    w = np.random.randint(1, 21)
+
+    # Subdivide the htrap
+    oyb, oyt, oxbl, oxbr, oxtl, oxtr = subdivide_htraps(w, yb, yt, xbl, xbr, xtl, xtr)
+
+    # Get the inscribed rectangle bounds for each subdivided htrap
+    y0, y1, x0, x1 = htraps_to_inner_rects(oyb, oyt, oxbl, oxbr, oxtl, oxtr)
+
+    # Create a figure and axis
+    fig, ax = plt.subplots()
+
+    # Plot the subdivided htraps
+    for i in range(w):
+        ax.plot([oxbl[i].item(), oxbr[i].item()], [oyb[i].item(), oyb[i].item()], 'b-')  # Bottom edge
+        ax.plot([oxtl[i].item(), oxtr[i].item()], [oyt[i].item(), oyt[i].item()], 'b-')  # Top edge
+        ax.plot([oxbl[i].item(), oxtl[i].item()], [oyb[i].item(), oyt[i].item()], 'b-')  # Left edge
+        ax.plot([oxbr[i].item(), oxtr[i].item()], [oyb[i].item(), oyt[i].item()], 'b-')  # Right edge
+
+    # Plot the inscribed rectangles for each subdivided htrap
+    for i in range(w):
+        ax.plot([x0[i].item(), x1[i].item()], [y0[i].item(), y0[i].item()], 'r-')  # Bottom edge
+        ax.plot([x0[i].item(), x1[i].item()], [y1[i].item(), y1[i].item()], 'r-')  # Top edge
+        ax.plot([x0[i].item(), x0[i].item()], [y0[i].item(), y1[i].item()], 'r-')  # Left e\codge
+        ax.plot([x1[i].item(), x1[i].item()], [y0[i].item(), y1[i].item()], 'r-')  # Right edge
+
+    # Set equal aspect ratio
+    ax.set_aspect('equal')
+
+    # Show the plot
+    plt.show()
 
 
 
