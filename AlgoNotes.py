@@ -262,6 +262,40 @@ class IntegralTexture:
 
 
 
+def _sort_xy_by_(*xys,axis='y'):
+    """
+    Anonymous helper function for sort_xy_by_y and sort_xy_by_x
+    See their docstrings
+    """
+    assert axis in {'x','y'}
+
+    assert xys, "Must provide at least one point-list"
+    assert not len(xys)%2, "Number of args must be even, because each x must have a y. See docstring."
+
+    xs=xys[0::2]
+    ys=xys[1::2]
+
+    assert all(x.ndim==1 for x in xs)
+    assert all(y.ndim==1 for y in ys)
+    assert len(set(map(len,xys)))==1, "All point-lists must have the same number of points"
+
+    k=len(xys)//2 #Number of point-lists
+    n=len(xys[0]) #Number of points per point-list
+
+    xs=torch.stack(xs)
+    ys=torch.stack(ys)
+    assert xs.shape==ys.shape
+    assert xs.shape==ys.shape==(k,n)
+
+    key = dict(x=xs, y=ys)[axis]
+    i = torch.argsort(key, dim=0)
+    
+    xs_sorted = torch.gather(xs, 0, i)
+    ys_sorted = torch.gather(ys, 0, i)
+
+    return list(itertools.chain(*zip(xs_sorted, ys_sorted)))
+
+
 def sort_xy_by_y(*xys):
     """
     Signature: sort_xy_by_y(x1,y1,x2,y2, ..., xk,yk)
@@ -284,30 +318,28 @@ def sort_xy_by_y(*xys):
     Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
     """
 
-    assert xys, "Must provide at least one point-list"
-    assert not len(xys)%2, "Number of args must be even, because each x must have a y. See docstring."
+    return _sort_xy_by_(*xys, 'y')
 
-    xs=xys[0::2]
-    ys=xys[1::2]
+def sort_xy_by_x(*xys):
+    """
+    Same idea as sort_xy_by_y, except along the x axis. See its docstring.
 
-    assert all(x.ndim==1 for x in xs)
-    assert all(y.ndim==1 for y in ys)
-    assert len(set(map(len,xys)))==1, "All point-lists must have the same number of points"
+    EXAMPLE:
+        x0 = torch.tensor([1, 2, 3])
+        y0 = torch.tensor([3, 1, 2])
+        x1 = torch.tensor([0, 1, 6])
+        y1 = torch.tensor([6, 4, 1])
+        sx0, sy0, sx1, sy1 = sort_xy_by_x(x0, y0, x1, y1)
+        print(as_numpy_array([sx0, sy0, sx1, sy1]))
+        # OUTPUT:
+        # [[0 1 3]
+        #  [6 4 2]
+        #  [1 2 6]
+        #  [3 1 1]]
 
-    k=len(xys)//2 #Number of point-lists
-    n=len(xys[0]) #Number of points per point-list
-
-    xs=torch.stack(xs)
-    ys=torch.stack(ys)
-    assert xs.shape==ys.shape
-    assert xs.shape==ys.shape==(k,n)
-
-    i = torch.argsort(ys, dim=0)
-    
-    xs_sorted = torch.gather(xs, 0, i)
-    ys_sorted = torch.gather(ys, 0, i)
-
-    return list(itertools.chain(*zip(xs_sorted, ys_sorted)))
+    Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
+    """
+    return _sort_xy_by_(*xys, 'x')
 
 def demo_integral_texture():
     """
@@ -631,6 +663,13 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     Given a triangle, returns two h-traps
     Like subdivide_htraps, the result will be totally flat because this is really just for integrals over textures anyway...
     """
+
+    #Notation in this function: t, m, b stand for top middle and bottom - aka y0, y1, and y2 respectively.
+
+    #Sort the points by height.
+    xt, yt, xm, ym, xb, yb = sort_xy_by_y(ax, ay, bx, by, cx, cy)
+    assert (yt>=ym).all(), "Internal assertion - sort_xy_by_y shouldn't fail"
+    assert (ym>=yb).all(), "Internal assertion - sort_xy_by_y shouldn't fail"
 
 
 
