@@ -258,17 +258,17 @@ class IntegralTexture:
         assert (dx>=0).all()
         assert (area>=0).all()
 
+
+        # #TEMP SANITY CHECK:
+        # sum = query_image_at_points(self.tex, (x0+x1)/2, (y0+y1)/2)
+        # area = (sum-sum+1).mean(0)
+        # return sum,area
+
         #This is based on the following fact, extended to 2d:
         #    ∀ a,b ∈ ℝ : a - b = (a % 1) + (⌊a⌋ - ⌊b⌋) - (b % 1)
         #    I have drawings in my notes about this. Sorry future reader lol. Maybe one day I'll draw it in unicode for you.
         #If this is a bottleneck, we can inline down to calculate_subpixel_weights to eliminate duplicate calculations
         s=self.cumsum
-
-        #TEMP SANITY CHECK:
-        sum = query_image_at_points(self.tex, (x0+x1)/2, (y0+y1)/2)
-        area = (sum-sum+1).mean(0)
-        return sum,area
-
         sum = (
             +s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)     \
             -s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq \
@@ -277,6 +277,21 @@ class IntegralTexture:
 
         assert sum.shape ==(c,n,)
         assert area.shape==(  n,)
+
+        ic(
+            sum.min(),
+            sum.max(),
+            area.min(),
+            area.max(),
+            self.cum_tex.min(),
+            self.cum_tex.max(),
+            s(x1r, y1r).max(),
+            s(x1r, y1r).min(),
+            (+s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)    ).sum(),
+            (-s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq).sum(),
+            (-s(x1r, y0r)     -s(xw, y0r)*dxq     +s(x0r, y0r)    ).sum(),
+            "Cheeteo",
+        )
 
         return sum, area
 
@@ -664,7 +679,7 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     xrs = (xbr * betas + xtr * alphas)
     assert ys.shape==xls.shape==xrs.shape==(w+1,n)
     
-    ic(alphas.shape, yb.shape, ys.shape)
+    # ic(alphas.shape, yb.shape, ys.shape)
 
     #o stands for output
     oyb =ys [ :-1]
@@ -1147,6 +1162,7 @@ def uv_mapping_demo():
 
 
     tic()
+
     #My anisotropic filtering
     w = 5 #Profile this as w goes up
     y0, y1, x0, x1 = quads_to_rects(
@@ -1160,21 +1176,31 @@ def uv_mapping_demo():
         einops.rearrange(du, 'OH OW -> (OH OW)'), 
         einops.rearrange(dv, 'OH OW -> (OH OW)'),
     )
+    ptoc()
+
+    #SANITY TEST: Integral is correct because this blurs it
+    x0 = au[y,x]
+    x1 = au[y,x]+10
+    y0 = av[y,x]
+    y1 = av[y,x]+10
     sum, area = tex.integral(x0, y0, x1, y1)
+
+
+
     # sum.shape: torch.Size([3, 2162400])
     # area.shape: torch.Size([2162400])
     # ic(sum.shape, area.shape, OH, OW, TH, TW, C)
 
     sum  = einops.rearrange(sum , "C (OH OW R) -> C OH OW R", OH=OH, OW=OW)
     area = einops.rearrange(area, "  (OH OW R) -> 1 OH OW R", OH=OH, OW=OW)
-    ic(area.min(),area.max(),sum.min(),sum.max())
+    # ic(area.min(),area.max(),sum.min(),sum.max())
     sum  = sum .sum(-1)
     area = area.sum(-1)
     ryan_filter = sum/area
     ryan_filter = ryan_filter.nan_to_num() #TODO: Replace with random noise or something - this is where we have no area.
     ptoc()
 
-    ic(sum.shape, area.shape, OH, OW, TH, TW, C)
+    # ic(sum.shape, area.shape, OH, OW, TH, TW, C)
 
 
 
