@@ -1,6 +1,4 @@
-from collections import abc
 import torch
-import torch.nn.functional as F
 import itertools
 import matplotlib.pyplot as plt
 import einops
@@ -209,6 +207,7 @@ class IntegralTexture:
         Integrates our given texture continuously in the given bounds
         Returns (sum, area)
         The bounds can be any real number - they wrap around the texture continuously
+        TODO: I should have made the signature consistent with y coming first. Oh well. Be careful!
         """
 
         assert x0.ndim == 1, 'x0 should be a vector'
@@ -806,14 +805,19 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
 
     #Flatten them - here 's' represents 'side' of which there are two (lower, upper)
-    oyb  = einops.rearrange(oyb , 's n -> (s n)')
-    oxbl = einops.rearrange(oxbl, 's n -> (s n)')
-    oxbr = einops.rearrange(oxbr, 's n -> (s n)')
-    oyt  = einops.rearrange(oyt , 's n -> (s n)')
-    oxtl = einops.rearrange(oxtl, 's n -> (s n)')
-    oxtr = einops.rearrange(oxtr, 's n -> (s n)')
+    yb  = einops.rearrange(yb , 's n -> (s n)')
+    yt  = einops.rearrange(yt , 's n -> (s n)')
+    xbl = einops.rearrange(xbl, 's n -> (s n)')
+    xbr = einops.rearrange(xbr, 's n -> (s n)')
+    xtl = einops.rearrange(xtl, 's n -> (s n)')
+    xtr = einops.rearrange(xtr, 's n -> (s n)')
 
     assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2*n,)
+
+    #Final expensive internal assertions - make sure they're valid h-traps
+    assert (yb <=yt ).all()
+    assert (xbl<=xbr).all()
+    assert (xtl<=xtr).all()
 
     return yb, yt, xbl, xbr, xtl, xtr 
 
@@ -1043,6 +1047,7 @@ def quads_to_rects(w, x0, y0, x1, y1, x2, y2, x3, y3):
 
 
 
+
 def uv_mapping_demo():
     import rp
 
@@ -1051,7 +1056,8 @@ def uv_mapping_demo():
     texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
 
-    device=rp.select_torch_device(prefer_used=True)
+    # device=rp.select_torch_device(prefer_used=True)
+    device='cpu'
 
     uvl_image     = rp.as_torch_image(uvl_image    ).to(device)
     texture_image = rp.as_torch_image(texture_image).to(device)
@@ -1061,9 +1067,9 @@ def uv_mapping_demo():
     v=uvl_image[1,:,:]
 
     #We will use two triangles:
-    #a  b
-    #
-    #c  d
+    # a  b
+    # 
+    # c  d
     #
     #abc and bcd
 
@@ -1103,6 +1109,25 @@ def uv_mapping_demo():
         au[y,x].floor(),
         av[y,x].floor(),
     )
+
+    #My anisotropic filtering
+    w = 5 #Profile this as w goes up
+    y0, y1, x0, x1 = quads_to_rects(
+        w, 
+        einops.rearrange(au, 'OH OW -> (OH OW)'), 
+        einops.rearrange(av, 'OH OW -> (OH OW)'), 
+        einops.rearrange(bu, 'OH OW -> (OH OW)'), 
+        einops.rearrange(bv, 'OH OW -> (OH OW)'), 
+        einops.rearrange(cu, 'OH OW -> (OH OW)'), 
+        einops.rearrange(cv, 'OH OW -> (OH OW)'), 
+        einops.rearrange(du, 'OH OW -> (OH OW)'), 
+        einops.rearrange(dv, 'OH OW -> (OH OW)'),
+    )
+    sum, area = tex.integral(x0, y0, x1, y1)
+    import icecream
+    icecream(sum.shape, area.shape, OH, OW, TH, TW, C)
+
+
 
     return rp.gather_vars('linear nearest')
 
