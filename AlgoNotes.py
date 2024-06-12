@@ -501,7 +501,90 @@ def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
     return y0, y1, x0, x1
 
 
+
+def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
+    """
+    Gets the bounds of a rectangle inscribed entirely in a trapezoid who has two edges parallel to the x-axis (aka an htrap)
+    Convention in this func: Lower y == bottom, higher y == top
+    (Regardless of image space vs cartesian space etc)
+    yb corresponds to y0 in other funcs
+    yt corresponds to y1 in other funcs
+    Returns y0, y1, x0, x1
+    """
+
+    assert yb .ndim==1, 'yb  should be a vector. Aka bot y.'
+    assert yt .ndim==1, 'yt  should be a vector. Aka top y.'
+    assert xbl.ndim==1, 'xbl should be a vector. Aka bot left x.'
+    assert xbr.ndim==1, 'xbr should be a vector. Aka bot right x.'
+    assert xtl.ndim==1, 'xtl should be a vector. Aka top left x.'
+    assert xtr.ndim==1, 'xtr should be a vector. Aka top right x.'
+    assert len(set(map(len,[yb, yt, xbl, xbr, xtl, xtr])))==1, "They should all have same length"
+    n = len(yb)
     
+    #Expensive assertions. Might replace yb/yt if my code is too buggy...
+    assert (yb <=yt ).all()
+    assert (xbl<=xbr).all()
+    assert (xtl<=xtr).all()
+
+    #o stands for output
+
+    #Output bounds:
+    y0=yb #The bot bound
+    y1=yt #The top bound
+
+    x0=torch.maximum(xtl, xbl)
+    x1=torch.minimum(xtr, xbr)
+    
+    #Don't have negative area: x0 can never be larger than x1
+    #This might happen if a given trapezoid is skewed enough
+    #In this case, collapse x0 and x1 to their mean
+    xμ=(x0+x1)/2
+    x0=torch.minimum(x0, xμ)
+    x1=torch.maximum(x1, xμ)
+    
+    assert (x0<=x1).all(), "Internal assertion that should never fail"
+    assert (y0<=y1).all(), "Internal assertion that should never fail"
+    assert x0.shape==x1.shape==y0.shape==y1.shape==(n,)
+
+    return y0, y1, x0, x1
+
+
+def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
+    """
+    Takes in a set of htraps in the form of points, and returns sets of points
+    w is the number of subdivisions. I chose this variable letter arbitrarily because w looks like two of something...
+    Uses same naming conventions as htraps_to_inner_rects (see its docstring)
+    If we need to optimize memory, we could avoid storing the duplicate coordinates here...
+    I assume you'll be using these h-traps to generate rectangles and integrate, so I'll just keep the output flat...
+    """
+
+    #For now I assume they're all the same device/dtype. Maybe I'll add an assertion sometime later.
+    dtype  = yb.dtype
+    device = yb.device
+
+    ys  = torch.linspace(yb ,yt ,w+1).to(device).to(dtype)
+    xls = torch.linspace(xbl,xtl,w+1).to(device).to(dtype)
+    xrs = torch.linspace(xbr,xtr,w+1).to(device).to(dtype)
+
+    #o stands for output
+    oyb =ys [ :-1]
+    oxbl=xls[ :-1]
+    oxbr=xrs[ :-1]
+    oyt =ys [1:  ]
+    oxtl=xls[1:  ]
+    oxtr=xrs[1:  ]
+
+    assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape== \
+            yb.shape== xbl.shape== xbr.shape== yt.shape== xtl.shape== xtr.shape
+
+    return oyb, oyt, oxbl, oxbr, oxtl, oxtr
+
+
+
+
+
+
+
 
 
 
