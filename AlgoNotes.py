@@ -270,86 +270,6 @@ class IntegralTexture:
         return sum, area
 
 
-
-def _sort_xy_by_(*xys,axis='y'):
-    """
-    Anonymous helper function for sort_xy_by_y and sort_xy_by_x
-    See their docstrings
-    """
-    assert axis in {'x','y'}
-
-    assert xys, "Must provide at least one point-list"
-    assert not len(xys)%2, "Number of args must be even, because each x must have a y. See docstring."
-
-    xs=xys[0::2]
-    ys=xys[1::2]
-
-    assert all(x.ndim==1 for x in xs)
-    assert all(y.ndim==1 for y in ys)
-    assert len(set(map(len,xys)))==1, "All point-lists must have the same number of points"
-
-    k=len(xys)//2 #Number of point-lists
-    n=len(xys[0]) #Number of points per point-list
-
-    xs=torch.stack(xs)
-    ys=torch.stack(ys)
-    assert xs.shape==ys.shape
-    assert xs.shape==ys.shape==(k,n)
-
-    key = dict(x=xs, y=ys)[axis]
-    i = torch.argsort(key, dim=0)
-    
-    xs_sorted = torch.gather(xs, 0, i)
-    ys_sorted = torch.gather(ys, 0, i)
-
-    return list(itertools.chain(*zip(xs_sorted, ys_sorted)))
-
-
-def sort_xy_by_y(*xys):
-    """
-    Signature: sort_xy_by_y(x1,y1,x2,y2, ..., xk,yk)
-    Given a set of 2d x,y coordinates, return a new x0,y0,x1,y1 such that y0<=y1 for all points
-    Assumes they are all torch tensors
-
-    EXAMPLE:
-        x0 = torch.tensor([1, 2, 3])
-        y0 = torch.tensor([3, 1, 2])
-        x1 = torch.tensor([4, 5, 6])
-        y1 = torch.tensor([6, 4, 1])
-        sx0, sy0, sx1, sy1 = sort_xy_by_y(x0, y0, x1, y1)
-        print(as_numpy_array([sx0, sy0, sx1, sy1]))
-        # OUTPUT:
-        #  [[1 2 6]
-        #   [3 1 1]
-        #   [4 5 3]
-        #   [6 4 2]]
-
-    Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
-    """
-
-    return _sort_xy_by_(*xys, axis= 'y')
-
-def sort_xy_by_x(*xys):
-    """
-    Same idea as sort_xy_by_y, except along the x axis. See its docstring.
-
-    EXAMPLE:
-        x0 = torch.tensor([1, 2, 3])
-        y0 = torch.tensor([3, 1, 2])
-        x1 = torch.tensor([0, 1, 6])
-        y1 = torch.tensor([6, 4, 1])
-        sx0, sy0, sx1, sy1 = sort_xy_by_x(x0, y0, x1, y1)
-        print(as_numpy_array([sx0, sy0, sx1, sy1]))
-        # OUTPUT:
-        # [[0 1 3]
-        #  [6 4 2]
-        #  [1 2 6]
-        #  [3 1 1]]
-
-    Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
-    """
-    return _sort_xy_by_(*xys, axis= 'x')
-
 def demo_integral_texture():
     """
     EXAMPLE OUTPUT:
@@ -401,20 +321,20 @@ def demo_integral_texture():
     """
 
 
-
+    import rp
     print('FIRST TEST. Remember, image[:,y,x] not image[:,x,y]!')
     image=torch.rand(3,100,100)
 
-    x0=torch.tensor(random_ints(10,0,100))
-    x1=torch.tensor(random_ints(10,0,100))
-    y0=torch.tensor(random_ints(10,0,100))
-    y1=torch.tensor(random_ints(10,0,100))
+    x0=torch.tensor(rp.random_ints(10,0,100))
+    x1=torch.tensor(rp.random_ints(10,0,100))
+    y0=torch.tensor(rp.random_ints(10,0,100))
+    y1=torch.tensor(rp.random_ints(10,0,100))
 
     #Make sure they're all valid rectangles...
     x0,x1 = torch.minimum(x0,x1), torch.maximum(x0,x1)
     y0,y1 = torch.minimum(y0,y1), torch.maximum(y0,y1)
 
-    i=random_index(10)
+    i=rp.random_index(10)
     print(
         image[
             :,
@@ -494,6 +414,85 @@ def demo_integral_texture():
         tex_integral_test(22, 33, 44, 55 + 200),
     )
 
+
+def _sort_xy_by_(*xys,axis='y'):
+    """
+    Anonymous helper function for sort_xy_by_y and sort_xy_by_x
+    See their docstrings
+    """
+    assert axis in {'x','y'}
+
+    assert xys, "Must provide at least one point-list"
+    assert not len(xys)%2, "Number of args must be even, because each x must have a y. See docstring."
+
+    xs=xys[0::2]
+    ys=xys[1::2]
+
+    assert all(x.ndim==1 for x in xs)
+    assert all(y.ndim==1 for y in ys)
+    assert len(set(map(len,xys)))==1, "All point-lists must have the same number of points"
+
+    k=len(xys)//2 #Number of point-lists
+    n=len(xys[0]) #Number of points per point-list
+
+    xs=torch.stack(xs)
+    ys=torch.stack(ys)
+    assert xs.shape==ys.shape
+    assert xs.shape==ys.shape==(k,n)
+
+    key = dict(x=xs, y=ys)[axis]
+    i = torch.argsort(key, dim=0)
+    
+    xs_sorted = torch.gather(xs, 0, i)
+    ys_sorted = torch.gather(ys, 0, i)
+
+    return list(itertools.chain(*zip(xs_sorted, ys_sorted)))
+
+
+def sort_xy_by_y(*xys):
+    """
+    Signature: sort_xy_by_y(x1,y1,x2,y2, ..., xk,yk)
+    Given a set of 2d x,y coordinates, return a new x0,y0,x1,y1 such that y0<=y1 for all points
+    Assumes they are all torch tensors
+
+    EXAMPLE:
+        x0 = torch.tensor([1, 2, 3])
+        y0 = torch.tensor([3, 1, 2])
+        x1 = torch.tensor([4, 5, 6])
+        y1 = torch.tensor([6, 4, 1])
+        sx0, sy0, sx1, sy1 = sort_xy_by_y(x0, y0, x1, y1)
+        print(as_numpy_array([sx0, sy0, sx1, sy1]))
+        # OUTPUT:
+        #  [[1 2 6]
+        #   [3 1 1]
+        #   [4 5 3]
+        #   [6 4 2]]
+
+    Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
+    """
+
+    return _sort_xy_by_(*xys, axis= 'y')
+
+def sort_xy_by_x(*xys):
+    """
+    Same idea as sort_xy_by_y, except along the x axis. See its docstring.
+
+    EXAMPLE:
+        x0 = torch.tensor([1, 2, 3])
+        y0 = torch.tensor([3, 1, 2])
+        x1 = torch.tensor([0, 1, 6])
+        y1 = torch.tensor([6, 4, 1])
+        sx0, sy0, sx1, sy1 = sort_xy_by_x(x0, y0, x1, y1)
+        print(as_numpy_array([sx0, sy0, sx1, sy1]))
+        # OUTPUT:
+        # [[0 1 3]
+        #  [6 4 2]
+        #  [1 2 6]
+        #  [3 1 1]]
+
+    Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
+    """
+    return _sort_xy_by_(*xys, axis= 'x')
 
 
 def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
