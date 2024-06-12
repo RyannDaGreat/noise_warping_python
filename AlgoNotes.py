@@ -2,6 +2,7 @@ import torch
 import itertools
 import matplotlib.pyplot as plt
 import einops
+from icecream import ic
 
 #TODO: Make vectorization cleaner.
 #Right now, it jumbles the rectangles with respect to the input triangles - since we assume we're going to integrate it all anyway.
@@ -650,6 +651,9 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     ys  = (yb  * betas + yt  * alphas)
     xls = (xbl * betas + xtl * alphas)
     xrs = (xbr * betas + xtr * alphas)
+    assert ys.shape==xls.shape==xrs.shape==(w+1,n)
+    
+    ic(alphas.shape, yb.shape, ys.shape)
 
     #o stands for output
     oyb =ys [ :-1]
@@ -659,6 +663,11 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     oxtl=xls[1:  ]
     oxtr=xrs[1:  ]
     assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape==(w,n)
+
+    #assert (oyb <=oyt ).all() fails sometimes due to nitpicky precision errors, like tensor(164.8750) tensor(164.8750) -- they're the same but registering as out of order.
+    #I'm confident this internal logic prevents that from happening, so I'll fix it here.
+    oyb, oyt = torch.minimum(oyb, oyt), torch.maximum(oyb, oyt)
+    assert (oyb <=oyt ).all()
 
     #Flatten them
     oyb  = einops.rearrange(oyb , 'w n -> (w n)')
@@ -671,7 +680,7 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape==(w*n,)
 
     #Expensive internal assertions. 
-    assert (oyb <=oyt ).all()
+    assert (oyb <=oyt ).all(), ((yb <=yt).sum(), (yb >=yt).sum(), (yb >yt).sum())
     assert (oxbl<=oxbr).all()
     assert (oxtl<=oxtr).all()
 
@@ -815,7 +824,7 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2*n,)
 
     #Final expensive internal assertions - make sure they're valid h-traps
-    assert (yb <=yt ).all()
+    assert (yb <=yt ).all(), ((yb <=yt).sum(), (yb >=yt).sum(), (yb >yt).sum())
     assert (xbl<=xbr).all()
     assert (xtl<=xtr).all()
 
@@ -1067,6 +1076,7 @@ def uv_mapping_demo():
     v=uvl_image[1,:,:]
 
     #We will use two triangles:
+    #TODO: Debug the ordering of the quadrilaterals...or force them to become paralellos...
     # a  b
     # 
     # c  d
@@ -1079,11 +1089,11 @@ def uv_mapping_demo():
     bu=u[:-1,1: ]*TW
     bv=v[:-1,1: ]*TH
 
-    cu=u[1: ,:-1]*TW
-    cv=v[1: ,:-1]*TH
+    cu=u[1: ,1:]*TW
+    cv=v[1: ,1:]*TH
 
-    du=u[1: ,1: ]*TW
-    dv=v[1: ,1: ]*TH
+    du=u[1: ,:-1 ]*TW
+    dv=v[1: ,:-1 ]*TH
 
     OH,OW=au.shape
 
@@ -1091,7 +1101,7 @@ def uv_mapping_demo():
 
     tex = IntegralTexture(texture_image)
 
-    y,x = torch.meshgrid(torch.arange(OH),torch.arange(OW))
+    y,x = torch.meshgrid(torch.arange(OH),torch.arange(OW),indexing="ij")
 
     x=x.flatten().to(device)
     y=y.flatten().to(device)
@@ -1110,8 +1120,10 @@ def uv_mapping_demo():
         av[y,x].floor(),
     )
 
+
+    tic()
     #My anisotropic filtering
-    w = 5 #Profile this as w goes up
+    w = 50 #Profile this as w goes up
     y0, y1, x0, x1 = quads_to_rects(
         w, 
         einops.rearrange(au, 'OH OW -> (OH OW)'), 
@@ -1124,14 +1136,33 @@ def uv_mapping_demo():
         einops.rearrange(dv, 'OH OW -> (OH OW)'),
     )
     sum, area = tex.integral(x0, y0, x1, y1)
-    import icecream
-    icecream(sum.shape, area.shape, OH, OW, TH, TW, C)
+    # sum.shape: torch.Size([3, 2162400])
+    # area.shape: torch.Size([2162400])
+    # ic(sum.shape, area.shape, OH, OW, TH, TW, C)
+
+    sum  = einops.rearrange(sum , "C (OH OW R) -> C OH OW R", OH=OH, OW=OW)
+    area = einops.rearrange(area, "  (OH OW R) -> 1 OH OW R", OH=OH, OW=OW)
+    ic(area.min(),area.max(),sum.min(),sum.max())
+    sum  = sum .sum(-1)
+    area = area.sum(-1)
+    ryan_filter = sum/area
+    ryan_filter = ryan_filter.nan_to_num() #TODO: Replace with random noise or something - this is where we have no area.
+    ptoc()
+
+    ic(sum.shape, area.shape, OH, OW, TH, TW, C)
 
 
 
-    return rp.gather_vars('linear nearest')
+
+
+    return rp.gather_vars('linear nearest ryan_filter')
 
 
 
 
 
+
+
+
+ans=uv_mapping_demo().ryan_filter
+display_image(ans)
