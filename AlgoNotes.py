@@ -1103,11 +1103,12 @@ def uv_mapping_demo():
     texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
 
+
     # device=rp.select_torch_device(prefer_used=True)
     device='cpu'
 
-    uvl_image     = rp.as_torch_image(uvl_image    ).to(device)
-    texture_image = rp.as_torch_image(texture_image).to(device)
+    uvl_image     = rp.as_torch_image(uvl_image    ).to(device).to(torch.float64)
+    texture_image = rp.as_torch_image(texture_image).to(device).to(torch.float64)
     C,TH,TW = texture_image.shape
 
     u=uvl_image[0,:,:]
@@ -1150,7 +1151,7 @@ def uv_mapping_demo():
 
     OH,OW=au.shape
 
-    output = torch.zeros(C,OH,OW).to(device)
+    output = torch.zeros(C,OH,OW).to(au.device).to(au.dtype)
 
     tex = IntegralTexture(texture_image)
 
@@ -1177,32 +1178,32 @@ def uv_mapping_demo():
     tic()
 
     #My anisotropic filtering
-    w = 1 #Profile this as w goes up
-    # y0, y1, x0, x1 = quads_to_rects(
-    #     w  = w, 
-    #     x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
-    #     y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-    #     x1 = einops.rearrange(bu, 'OH OW -> (OH OW)'), 
-    #     y1 = einops.rearrange(bv, 'OH OW -> (OH OW)'), 
-    #     x2 = einops.rearrange(cu, 'OH OW -> (OH OW)'), 
-    #     y2 = einops.rearrange(cv, 'OH OW -> (OH OW)'), 
-    #     x3 = einops.rearrange(du, 'OH OW -> (OH OW)'),
-    #     y3 = einops.rearrange(dv, 'OH OW -> (OH OW)'), 
-    # )
-
-
-    #SANITY CHECK: This works.............weird....
+    w = 2 #Profile this as w goes up
     y0, y1, x0, x1 = quads_to_rects(
         w  = w, 
         x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
         y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-        x1 = einops.rearrange(au+2, 'OH OW -> (OH OW)'), 
-        y1 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-        x2 = einops.rearrange(au+2, 'OH OW -> (OH OW)'), 
-        y2 = einops.rearrange(av+2, 'OH OW -> (OH OW)'), 
-        x3 = einops.rearrange(au, 'OH OW -> (OH OW)'),
-        y3 = einops.rearrange(av+2, 'OH OW -> (OH OW)'), 
+        x1 = einops.rearrange(bu, 'OH OW -> (OH OW)'), 
+        y1 = einops.rearrange(bv, 'OH OW -> (OH OW)'), 
+        x2 = einops.rearrange(cu, 'OH OW -> (OH OW)'), 
+        y2 = einops.rearrange(cv, 'OH OW -> (OH OW)'), 
+        x3 = einops.rearrange(du, 'OH OW -> (OH OW)'),
+        y3 = einops.rearrange(dv, 'OH OW -> (OH OW)'), 
     )
+
+
+    #SANITY CHECK: This works.............weird....
+    # y0, y1, x0, x1 = quads_to_rects(
+    #     w  = w, 
+    #     x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
+    #     y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
+    #     x1 = einops.rearrange(au+.0020, 'OH OW -> (OH OW)'), 
+    #     y1 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
+    #     x2 = einops.rearrange(au+.0020, 'OH OW -> (OH OW)'), 
+    #     y2 = einops.rearrange(av+.0020, 'OH OW -> (OH OW)'), 
+    #     x3 = einops.rearrange(au, 'OH OW -> (OH OW)'),
+    #     y3 = einops.rearrange(av+.0020, 'OH OW -> (OH OW)'), 
+    # )
     
     
     ptoc()
