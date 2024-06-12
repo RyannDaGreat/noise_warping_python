@@ -263,6 +263,12 @@ class IntegralTexture:
         #    I have drawings in my notes about this. Sorry future reader lol. Maybe one day I'll draw it in unicode for you.
         #If this is a bottleneck, we can inline down to calculate_subpixel_weights to eliminate duplicate calculations
         s=self.cumsum
+
+        #TEMP SANITY CHECK:
+        sum = query_image_at_points(self.tex, (x0+x1)/2, (y0+y1)/2)
+        area = (sum-sum+1).mean(0)
+        return sum,area
+
         sum = (
             +s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)     \
             -s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq \
@@ -675,12 +681,12 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     assert (oyb <=oyt ).all()
 
     #Flatten them
-    oyb  = einops.rearrange(oyb , 'w n -> (w n)')
-    oxbl = einops.rearrange(oxbl, 'w n -> (w n)')
-    oxbr = einops.rearrange(oxbr, 'w n -> (w n)')
-    oyt  = einops.rearrange(oyt , 'w n -> (w n)')
-    oxtl = einops.rearrange(oxtl, 'w n -> (w n)')
-    oxtr = einops.rearrange(oxtr, 'w n -> (w n)')
+    oyb  = einops.rearrange(oyb , 'w n -> (n w)')
+    oxbl = einops.rearrange(oxbl, 'w n -> (n w)')
+    oxbr = einops.rearrange(oxbr, 'w n -> (n w)')
+    oyt  = einops.rearrange(oyt , 'w n -> (n w)')
+    oxtl = einops.rearrange(oxtl, 'w n -> (n w)')
+    oxtr = einops.rearrange(oxtr, 'w n -> (n w)')
 
     assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape==(w*n,)
 
@@ -819,12 +825,12 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
 
     #Flatten them - here 's' represents 'side' of which there are two (lower, upper)
-    yb  = einops.rearrange(yb , 's n -> (s n)')
-    yt  = einops.rearrange(yt , 's n -> (s n)')
-    xbl = einops.rearrange(xbl, 's n -> (s n)')
-    xbr = einops.rearrange(xbr, 's n -> (s n)')
-    xtl = einops.rearrange(xtl, 's n -> (s n)')
-    xtr = einops.rearrange(xtr, 's n -> (s n)')
+    yb  = einops.rearrange(yb , 's n -> (n s)')
+    yt  = einops.rearrange(yt , 's n -> (n s)')
+    xbl = einops.rearrange(xbl, 's n -> (n s)')
+    xbr = einops.rearrange(xbr, 's n -> (n s)')
+    xtl = einops.rearrange(xtl, 's n -> (n s)')
+    xtr = einops.rearrange(xtr, 's n -> (n s)')
 
     assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2*n,)
 
@@ -938,6 +944,17 @@ def tris_to_rects(w, ax, ay, bx, by, cx, cy):
     x0 = torch.cat((Hx0, Vx0))
     x1 = torch.cat((Hx1, Vx1))
 
+
+    y0 = torch.stack((Hy0, Vy0))
+    y1 = torch.stack((Hy1, Vy1))
+    x0 = torch.stack((Hx0, Vx0))
+    x1 = torch.stack((Hx1, Vx1))
+
+    y0 = einops.rearrange(y0, 't n -> (n t)')
+    y1 = einops.rearrange(y1, 't n -> (n t)')
+    x0 = einops.rearrange(x0, 't n -> (n t)')
+    x1 = einops.rearrange(x1, 't n -> (n t)')
+
     return y0, y1, x0, x1
 
 def demo_tris_to_rects():
@@ -1001,12 +1018,12 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2,n)
 
     #Flatten them - here 't' represents number of triangles
-    ax = einops.rearrange(ax, 't n -> (t n)')
-    ay = einops.rearrange(ay, 't n -> (t n)')
-    bx = einops.rearrange(bx, 't n -> (t n)')
-    by = einops.rearrange(by, 't n -> (t n)')
-    cx = einops.rearrange(cx, 't n -> (t n)')
-    cy = einops.rearrange(cy, 't n -> (t n)')
+    ax = einops.rearrange(ax, 't n -> (n t)')
+    ay = einops.rearrange(ay, 't n -> (n t)')
+    bx = einops.rearrange(bx, 't n -> (n t)')
+    by = einops.rearrange(by, 't n -> (n t)')
+    cx = einops.rearrange(cx, 't n -> (n t)')
+    cy = einops.rearrange(cy, 't n -> (n t)')
     assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2*n,)
 
     return ax, ay, bx, by, cx, cy
@@ -1099,6 +1116,9 @@ def uv_mapping_demo():
 
     du=u[1: ,:-1 ]*TW
     dv=v[1: ,:-1 ]*TH
+
+    bu=cu=du=au
+    bv=cv=dv=av 
 
     OH,OW=au.shape
 
