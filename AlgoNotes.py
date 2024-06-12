@@ -420,6 +420,7 @@ def _sort_xy_by_(*xys,axis='y'):
     Anonymous helper function for sort_xy_by_y and sort_xy_by_x
     See their docstrings
     """
+    #BATCH PRESERVES: Should be yes [no change in n]
     assert axis in {'x','y'}
 
     assert xys, "Must provide at least one point-list"
@@ -470,7 +471,7 @@ def sort_xy_by_y(*xys):
 
     Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
     """
-
+    #BATCH PRESERVES: Should be yes [no change in n]
     return _sort_xy_by_(*xys, axis= 'y')
 
 def sort_xy_by_x(*xys):
@@ -492,6 +493,7 @@ def sort_xy_by_x(*xys):
 
     Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
     """
+    #BATCH PRESERVES: Should be yes [no change in n]
     return _sort_xy_by_(*xys, axis= 'x')
 
 
@@ -505,6 +507,7 @@ def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
     Returns y0, y1, x0, x1
     Checked: THIS FUNCTION IS CORRECT (checked via demo_htraps_to_inner_rects and demo_subdivide_htrap_rects visually)
     """
+    #BATCH PRESERVES: Should be yes [no change in n]
 
     assert yb .ndim==1, 'yb  should be a vector. Aka bot y.'
     assert yt .ndim==1, 'yt  should be a vector. Aka top y.'
@@ -591,7 +594,7 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     I assume you'll be using these h-traps to generate rectangles and integrate, so I'll just keep the output flat...
     Checked: THIS FUNCTION IS CORRECT (checked via demo_subdivide_htrap_rects visually)
     """
-
+    #BATCH PRESERVES: NOT naively, because n changes.
 
 
     assert yb.ndim == xbl.ndim == xbr.ndim == yt.ndim == xtl.ndim == xtr.ndim == 1
@@ -702,6 +705,7 @@ def ilerp(start, end, values):
         values = ilerp(start, end, interpolated_values)
         print(values)  # Output: tensor([0.5000, 0.5000])
     """
+    #BATCH PRESERVES: Yes. It's element-wise
     return (values - start) / (end - start)
 
 def tris_to_htraps(ax, ay, bx, by, cx, cy):
@@ -711,6 +715,7 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     No assumptions are made about the ordering of the points on these triangles! It is this function's responsibility to make sure they don't make negative areas etc.
     Checked: THIS FUNCTION IS CORRECT (checked via demo_triangles_to_htraps visually)
     """
+    #BATCH PRESERVES: Not naively, two htraps per triangle.
 
 
     assert ax.ndim == ay.ndim == bx.ndim == by.ndim == cx.ndim == cy.ndim == 1
@@ -845,6 +850,7 @@ def tris_to_rects(w, ax, ay, bx, by, cx, cy):
     Given triangles, gives rectangles that approximate them both vertically and horizontally
     Checked: THIS FUNCTION IS CORRECT (checked via demo_tris_to_rects visually)
     """
+    #BATCH PRESERVES: Maybe. Entirely depends on its helper functions.
 
     def helper(ax, ay, bx, by, cx, cy):
         yb, yt, xbl, xbr, xtl, xtr = tris_to_htraps(ax, ay, bx, by, cx, cy)
