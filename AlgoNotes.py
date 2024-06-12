@@ -462,6 +462,7 @@ def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
     yb corresponds to y0 in other funcs
     yt corresponds to y1 in other funcs
     Returns y0, y1, x0, x1
+    Checked: THIS FUNCTION IS CORRECT (checked via demo_htraps_to_inner_rects visually)
     """
 
     assert yb .ndim==1, 'yb  should be a vector. Aka bot y.'
@@ -500,53 +501,45 @@ def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
 
     return y0, y1, x0, x1
 
+def demo_htraps_to_inner_rects():
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import torch
 
 
-def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
-    """
-    Gets the bounds of a rectangle inscribed entirely in a trapezoid who has two edges parallel to the x-axis (aka an htrap)
-    Convention in this func: Lower y == bottom, higher y == top
-    (Regardless of image space vs cartesian space etc)
-    yb corresponds to y0 in other funcs
-    yt corresponds to y1 in other funcs
-    Returns y0, y1, x0, x1
-    """
+    # Generate random htrap bounds
+    n = 1
+    yb = torch.rand(n)
+    yt = yb + torch.rand(n) * 0.5
+    xbl = torch.rand(n)
+    xbr = xbl + torch.rand(n) * 0.5
+    xtl = torch.rand(n)
+    xtr = xtl + torch.rand(n) * 0.5
 
-    assert yb .ndim==1, 'yb  should be a vector. Aka bot y.'
-    assert yt .ndim==1, 'yt  should be a vector. Aka top y.'
-    assert xbl.ndim==1, 'xbl should be a vector. Aka bot left x.'
-    assert xbr.ndim==1, 'xbr should be a vector. Aka bot right x.'
-    assert xtl.ndim==1, 'xtl should be a vector. Aka top left x.'
-    assert xtr.ndim==1, 'xtr should be a vector. Aka top right x.'
-    assert len(set(map(len,[yb, yt, xbl, xbr, xtl, xtr])))==1, "They should all have same length"
-    n = len(yb)
-    
-    #Expensive assertions. Might replace yb/yt if my code is too buggy...
-    assert (yb <=yt ).all()
-    assert (xbl<=xbr).all()
-    assert (xtl<=xtr).all()
+    # Get the inscribed rectangle bounds
+    y0, y1, x0, x1 = htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr)
 
-    #o stands for output
+    # Create a figure and axis
+    fig, ax = plt.subplots()
 
-    #Output bounds:
-    y0=yb #The bot bound
-    y1=yt #The top bound
+    # Plot the htrap
+    ax.plot([xbl.item(), xbr.item()], [yb.item(), yb.item()], 'b-')  # Bottom edge
+    ax.plot([xtl.item(), xtr.item()], [yt.item(), yt.item()], 'b-')  # Top edge
+    ax.plot([xbl.item(), xtl.item()], [yb.item(), yt.item()], 'b-')  # Left edge
+    ax.plot([xbr.item(), xtr.item()], [yb.item(), yt.item()], 'b-')  # Right edge
 
-    x0=torch.maximum(xtl, xbl)
-    x1=torch.minimum(xtr, xbr)
-    
-    #Don't have negative area: x0 can never be larger than x1
-    #This might happen if a given trapezoid is skewed enough
-    #In this case, collapse x0 and x1 to their mean
-    xμ=(x0+x1)/2
-    x0=torch.minimum(x0, xμ)
-    x1=torch.maximum(x1, xμ)
-    
-    assert (x0<=x1).all(), "Internal assertion that should never fail"
-    assert (y0<=y1).all(), "Internal assertion that should never fail"
-    assert x0.shape==x1.shape==y0.shape==y1.shape==(n,)
+    # Plot the inscribed rectangle
+    ax.plot([x0.item(), x1.item()], [y0.item(), y0.item()], 'r-')  # Bottom edge
+    ax.plot([x0.item(), x1.item()], [y1.item(), y1.item()], 'r-')  # Top edge
+    ax.plot([x0.item(), x0.item()], [y0.item(), y1.item()], 'r-')  # Left edge
+    ax.plot([x1.item(), x1.item()], [y0.item(), y1.item()], 'r-')  # Right edge
 
-    return y0, y1, x0, x1
+    # Set equal aspect ratio
+    ax.set_aspect('equal')
+
+    # Show the plot
+    plt.show()
+
 
 
 def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
@@ -578,8 +571,6 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
             yb.shape== xbl.shape== xbr.shape== yt.shape== xtl.shape== xtr.shape
 
     return oyb, oyt, oxbl, oxbr, oxtl, oxtr
-
-
 
 
 
