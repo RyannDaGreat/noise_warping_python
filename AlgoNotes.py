@@ -1029,6 +1029,18 @@ def quads_to_tris_demo():
     pax.set_title('Quad and its Two Triangles')
     plt.show()
 
+def quads_to_rects(w, x0, y0, x1, y1, x2, y2, x3, y3):
+    """
+    Given triangles, gives rectangles that approximate them both vertically and horizontally
+    Checked: THIS FUNCTION IS CORRECT (checked via demo_tris_to_rects visually)
+    """
+    #BATCH PRESERVES: Maybe. Entirely depends on its helper functions.
+
+    ax, ay, bx, by, cx, cy = quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3)
+    y0, y1, x0, x1 = tris_to_rects(w, ax, ay, bx, by, cx, cy)
+
+    return y0, y1, x0, x1
+
 
 
 def uv_mapping_demo():
@@ -1079,15 +1091,20 @@ def uv_mapping_demo():
     y=y.flatten().to(device)
 
     #Linear texture filtering
-    output[:,y,x] = query_image_at_points(
+    linear = output[:,y,x] = query_image_at_points(
         texture_image,
         au[y,x],
         av[y,x],
     )
-    
-    
 
-    return output
+    #Nearest texture filtering
+    nearest = output[:,y,x] = query_image_at_points(
+        texture_image,
+        au[y,x].floor(),
+        av[y,x].floor(),
+    )
+
+    return rp.gather_vars('linear nearest')
 
 
 
