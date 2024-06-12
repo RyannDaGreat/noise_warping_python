@@ -1,3 +1,4 @@
+from distutils.errors import DistutilsModuleError
 import torch
 import itertools
 import matplotlib.pyplot as plt
@@ -1116,7 +1117,7 @@ def uv_mapping_demo():
     #TODO: Debug the ordering of the quadrilaterals...or force them to become paralellos...
     # a  b
     # 
-    # c  d
+    # d  c
     #
     #abc and bcd
 
@@ -1131,6 +1132,18 @@ def uv_mapping_demo():
 
     du=u[1: ,:-1 ]*TW
     dv=v[1: ,:-1 ]*TH
+
+    #These are shifted clockwise.
+    # rp.display_image_slideshow([
+    #     rp.full_range(rp.as_numpy_array(au)),
+    #     rp.full_range(rp.as_numpy_array(bu)),
+    #     rp.full_range(rp.as_numpy_array(cu)),
+    #     rp.full_range(rp.as_numpy_array(du)),
+    #     rp.full_range(rp.as_numpy_array(av)),
+    #     rp.full_range(rp.as_numpy_array(bv)),
+    #     rp.full_range(rp.as_numpy_array(cv)),
+    #     rp.full_range(rp.as_numpy_array(dv)),
+    # ])
 
     bu=cu=du=au
     bv=cv=dv=av 
@@ -1164,25 +1177,44 @@ def uv_mapping_demo():
     tic()
 
     #My anisotropic filtering
-    w = 5 #Profile this as w goes up
+    w = 10 #Profile this as w goes up
+    # y0, y1, x0, x1 = quads_to_rects(
+    #     w  = w, 
+    #     x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
+    #     y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
+    #     x1 = einops.rearrange(bu, 'OH OW -> (OH OW)'), 
+    #     y1 = einops.rearrange(bv, 'OH OW -> (OH OW)'), 
+    #     x2 = einops.rearrange(cu, 'OH OW -> (OH OW)'), 
+    #     y2 = einops.rearrange(cv, 'OH OW -> (OH OW)'), 
+    #     x3 = einops.rearrange(du, 'OH OW -> (OH OW)'),
+    #     y3 = einops.rearrange(dv, 'OH OW -> (OH OW)'), 
+    # )
+
+
+    #SANITY CHECK: This works.............weird....
     y0, y1, x0, x1 = quads_to_rects(
-        w, 
-        einops.rearrange(au, 'OH OW -> (OH OW)'), 
-        einops.rearrange(av, 'OH OW -> (OH OW)'), 
-        einops.rearrange(bu, 'OH OW -> (OH OW)'), 
-        einops.rearrange(bv, 'OH OW -> (OH OW)'), 
-        einops.rearrange(cu, 'OH OW -> (OH OW)'), 
-        einops.rearrange(cv, 'OH OW -> (OH OW)'), 
-        einops.rearrange(du, 'OH OW -> (OH OW)'), 
-        einops.rearrange(dv, 'OH OW -> (OH OW)'),
+        w  = w, 
+        x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
+        y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
+        x1 = einops.rearrange(au+1, 'OH OW -> (OH OW)'), 
+        y1 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
+        x2 = einops.rearrange(au+1, 'OH OW -> (OH OW)'), 
+        y2 = einops.rearrange(av+1, 'OH OW -> (OH OW)'), 
+        x3 = einops.rearrange(au, 'OH OW -> (OH OW)'),
+        y3 = einops.rearrange(av+1, 'OH OW -> (OH OW)'), 
     )
+    
+    
     ptoc()
 
+
     #SANITY TEST: Integral is correct because this blurs it
-    x0 = au[y,x]
-    x1 = au[y,x]+10
-    y0 = av[y,x]
-    y1 = av[y,x]+10
+    # x0 = au[y,x]
+    # x1 = au[y,x]+10
+    # y0 = av[y,x]
+    # y1 = av[y,x]+10
+
+
     sum, area = tex.integral(x0, y0, x1, y1)
 
 
