@@ -4,6 +4,12 @@ import itertools
 import matplotlib.pyplot as plt
 import einops
 
+#TODO: Make vectorization cleaner.
+#Right now, it jumbles the rectangles with respect to the input triangles - since we assume we're going to integrate it all anyway.
+#To fix this we need to have another dimension for the geomtry queries: a batch dimension.
+#Otherwise, we gonna have to loop for every pixel in screenspace using a python for-loop.
+#TODO: Make sure the mag filter is nearest! Noise texture recursion wont work otherwise...
+
 def calculate_subpixel_weights(x, y):
     """
     Calculates subpixel weights for bilinear interpolation
