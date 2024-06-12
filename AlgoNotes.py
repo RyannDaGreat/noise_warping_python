@@ -4,6 +4,7 @@ import itertools
 import matplotlib.pyplot as plt
 import einops
 from icecream import ic
+import rp
 
 #TODO: Make vectorization cleaner.
 #Right now, it jumbles the rectangles with respect to the input triangles - since we assume we're going to integrate it all anyway.
@@ -1094,34 +1095,29 @@ def quads_to_rects(w, x0, y0, x1, y1, x2, y2, x3, y3):
 
 
 
+def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
 
-def uv_mapping_demo():
-    import rp
+    if not rp.is_torch_tensor(uv_image):
+        uv_image = rp.as_rgb_image(rp.as_float_image(uv_image))
+        uv_image = rp.as_torch_image(uv_image)
 
-    uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
-    # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
-    texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
-    texture_image=get_checkerboard_image(height=512,width=512)
-    texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
+    if not rp.is_torch_tensor(tex_image):
+        tex_image = rp.as_rgba_image(rp.as_float_image(tex_image))
+        tex_image = rp.as_torch_image(tex_image)
 
+    assert tex_image.device == uv_image.device
 
-    # device=rp.select_torch_device(prefer_used=True)
-    device='cpu'
+    # We *need* this high precision
+    uv_image = uv_image.to(torch.float64)
 
-    uvl_image     = rp.as_torch_image(uvl_image    ).to(device).to(torch.float64)
-    texture_image = rp.as_torch_image(texture_image).to(device).to(torch.float64)
-    C,TH,TW = texture_image.shape
+    if device is not None:
+        uv_image = uv_image.to(device)
+        tex_image = tex_image.to(device)
 
-    u=uvl_image[0,:,:]
-    v=uvl_image[1,:,:]
+    C, TH, TW = tex_image.shape  # Channels, Texture Height/Width
 
-    #We will use two triangles:
-    #TODO: Debug the ordering of the quadrilaterals...or force them to become paralellos...
-    # a  b
-    # 
-    # d  c
-    #
-    #abc and bcd
+    u=uv_image[0,:,:]
+    v=uv_image[1,:,:]
 
     au=u[:-1,:-1]*TW
     av=v[:-1,:-1]*TH
@@ -1129,32 +1125,17 @@ def uv_mapping_demo():
     bu=u[:-1,1: ]*TW
     bv=v[:-1,1: ]*TH
 
-    cu=u[1: ,1:]*TW
-    cv=v[1: ,1:]*TH
+    cu=u[1: ,1: ]*TW
+    cv=v[1: ,1: ]*TH
 
-    du=u[1: ,:-1 ]*TW
-    dv=v[1: ,:-1 ]*TH
-    
-    ic(du.min(),du.max(),TW,TH)
+    du=u[1: ,:-1]*TW
+    dv=v[1: ,:-1]*TH
 
-    #These are shifted clockwise.
-    # rp.display_image_slideshow([
-    #     rp.full_range(rp.as_numpy_array(au)),
-    #     rp.full_range(rp.as_numpy_array(bu)),
-    #     rp.full_range(rp.as_numpy_array(cu)),
-    #     rp.full_range(rp.as_numpy_array(du)),
-    #     rp.full_range(rp.as_numpy_array(av)),
-    #     rp.full_range(rp.as_numpy_array(bv)),
-    #     rp.full_range(rp.as_numpy_array(cv)),
-    #     rp.full_range(rp.as_numpy_array(dv)),
-    # ])
-
-
-    OH,OW=au.shape
+    OH,OW=au.shape #Output Height/Width
 
     output = torch.zeros(C,OH,OW).to(au.device).to(au.dtype)
 
-    tex = IntegralTexture(texture_image)
+    tex = IntegralTexture(tex_image)
 
     y,x = torch.meshgrid(torch.arange(OH),torch.arange(OW),indexing="ij")
 
@@ -1162,15 +1143,17 @@ def uv_mapping_demo():
     y=y.flatten().to(device)
 
     #Linear texture filtering
-    linear = output[:,y,x] = query_image_at_points(
-        texture_image,
+    linear=output+0
+    linear[:,y,x] = query_image_at_points(
+        tex_image,
         au[y,x],
         av[y,x],
     )
 
     #Nearest texture filtering
-    nearest = output[:,y,x] = query_image_at_points(
-        texture_image,
+    nearest=output+0
+    nearest[:,y,x] = query_image_at_points(
+        tex_image,
         au[y,x].floor(),
         av[y,x].floor(),
     )
@@ -1179,7 +1162,6 @@ def uv_mapping_demo():
     tic()
 
     #My anisotropic filtering
-    w = 10 #Profile this as w goes up
     y0, y1, x0, x1 = quads_to_rects(
          w  = w, 
          x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
@@ -1193,61 +1175,53 @@ def uv_mapping_demo():
      )
 
 
-    #SANITY CHECK: This works.............weird....
-    #y0, y1, x0, x1 = quads_to_rects(
-        #w  = w, 
-        #x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
-        #y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-        #x1 = einops.rearrange(au+.000020, 'OH OW -> (OH OW)'), 
-        #y1 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-        #x2 = einops.rearrange(au+.000020, 'OH OW -> (OH OW)'), 
-        #y2 = einops.rearrange(av+.000020, 'OH OW -> (OH OW)'), 
-        #x3 = einops.rearrange(au, 'OH OW -> (OH OW)'),
-        #y3 = einops.rearrange(av+.000020, 'OH OW -> (OH OW)'), 
-    #)
-    
-    
     ptoc()
-
-
-    #SANITY TEST: Integral is correct because this blurs it
-    # x0 = au[y,x]
-    # x1 = au[y,x]+10
-    # y0 = av[y,x]
-    # y1 = av[y,x]+10
 
 
     sum, area = tex.integral(x0, y0, x1, y1)
 
-
-
-    # sum.shape: torch.Size([3, 2162400])
-    # area.shape: torch.Size([2162400])
-    # ic(sum.shape, area.shape, OH, OW, TH, TW, C)
-
     sum  = einops.rearrange(sum , "C (OH OW R) -> C OH OW R", OH=OH, OW=OW)
     area = einops.rearrange(area, "  (OH OW R) -> 1 OH OW R", OH=OH, OW=OW)
-    # ic(area.min(),area.max(),sum.min(),sum.max())
     sum  = sum .sum(-1)
     area = area.sum(-1)
     ryan_filter = sum/area
     ryan_filter = ryan_filter.nan_to_num() #TODO: Replace with random noise or something - this is where we have no area.
+
     ptoc()
 
-    # ic(sum.shape, area.shape, OH, OW, TH, TW, C)
+    return rp.gather_vars('linear nearest ryan_filter sum area')
+
+
+def uv_mapping_demo():
+    #uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
+    uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
+    #uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+    texture_image=get_checkerboard_image(height=512*3,width=512*3)
+    texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
+
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
+
+
+    return output
 
 
 
 
 
-    return rp.gather_vars('linear nearest ryan_filter')
 
 
 
+# ans=uv_mapping_demo()
+# display_image(ans.ryan_filter)
 
+#uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
+uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
+uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+texture_image=get_checkerboard_image(height=512*3,width=512*3)
 
+texture_image = rp.as_float_image(rp.as_rgb_image(texture_image)).astype(np.float16)
 
+output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
 
-
-ans=uv_mapping_demo()
-display_image(ans.ryan_filter)
