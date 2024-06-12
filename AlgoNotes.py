@@ -318,7 +318,7 @@ def sort_xy_by_y(*xys):
     Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
     """
 
-    return _sort_xy_by_(*xys, 'y')
+    return _sort_xy_by_(*xys, axis= 'y')
 
 def sort_xy_by_x(*xys):
     """
@@ -339,7 +339,7 @@ def sort_xy_by_x(*xys):
 
     Checked: THIS FUNCTION IS CORRECT (only checked the above example though)
     """
-    return _sort_xy_by_(*xys, 'x')
+    return _sort_xy_by_(*xys, axis= 'x')
 
 def demo_integral_texture():
     """
@@ -688,6 +688,8 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     """
     Given a triangle, returns two h-traps
     Like subdivide_htraps, the result will be totally flat because this is really just for integrals over textures anyway...
+    Checked: THIS FUNCTION IS CORRECT (checked via demo_triangles_to_htraps visually)
+
     """
 
 
@@ -695,10 +697,10 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     assert len(ax) == len(ay) == len(bx) == len(by) == len(cx) == len(cy)
     n=len(ax)
 
-    #Notation in this function: t, m, b stand for top middle and bottom - aka y0, y1, and y2 respectively.
+    #Notation in this function: b, m, t stand for bottom middle and top - aka y0, y1, and y2 respectively.
 
     #Sort the points by height.
-    xt, yt, xm, ym, xb, yb = sort_xy_by_y(ax, ay, bx, by, cx, cy)
+    xb, yb, xm, ym, xt, yt = sort_xy_by_y(ax, ay, bx, by, cx, cy)
     assert (yt>=ym).all(), "Internal assertion - sort_xy_by_y shouldn't fail"
     assert (ym>=yb).all(), "Internal assertion - sort_xy_by_y shouldn't fail"
 
@@ -720,21 +722,51 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     #And now the lower h-traps
     Lyb  = yb
     Lyt  = ym
-    Lxbl = xml
-    Lxbr = xmr
-    Lxtl = xb
-    Lxtr = xb
+    Lxbl = xb
+    Lxbr = xb
+    Lxtl = xml
+    Lxtr = xmr
 
     #Now combine the lower and upper h-traps into one flat list of h-traps
-    yb  = torch.cat(Lyb , Uyb )
-    yt  = torch.cat(Lyt , Uyt )
-    xbl = torch.cat(Lxbl, Uxbl)
-    xbr = torch.cat(Lxbr, Uxbr)
-    xtl = torch.cat(Lxtl, Uxtl)
-    xtr = torch.cat(Lxtr, Uxtr)
+    yb  = torch.cat((Lyb , Uyb ))
+    yt  = torch.cat((Lyt , Uyt ))
+    xbl = torch.cat((Lxbl, Uxbl))
+    xbr = torch.cat((Lxbr, Uxbr))
+    xtl = torch.cat((Lxtl, Uxtl))
+    xtr = torch.cat((Lxtr, Uxtr))
 
     assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(n*2,)
 
     return yb, yt, xbl, xbr, xtl, xtr 
 
+def demo_triangles_to_htraps():
+    # Generate random triangle vertices
+    n = 1
+    ax = torch.rand(n)
+    ay = torch.rand(n)
+    bx = torch.rand(n)
+    by = torch.rand(n)
+    cx = torch.rand(n)
+    cy = torch.rand(n)
 
+    # Convert the triangles to htraps
+    yb, yt, xbl, xbr, xtl, xtr = tris_to_htraps(ax, ay, bx, by, cx, cy)
+
+    # Create a figure and axis
+    fig, plt_ax = plt.subplots()
+
+    # Plot the triangle
+    plt_ax.plot([ax.item(), bx.item(), cx.item(), ax.item()], [ay.item(), by.item(), cy.item(), ay.item()], 'b-')
+
+    # Plot the htraps
+    for i in range(2):
+        plt_ax.plot([xbl[i].item(), xbr[i].item()], [yb[i].item(), yb[i].item()], 'r-')  # Bottom edge
+        plt_ax.plot([xtl[i].item(), xtr[i].item()], [yt[i].item(), yt[i].item()], 'r-')  # Top edge
+        plt_ax.plot([xbl[i].item(), xtl[i].item()], [yb[i].item(), yt[i].item()], 'r-')  # Left edge
+        plt_ax.plot([xbr[i].item(), xtr[i].item()], [yb[i].item(), yt[i].item()], 'r-')  # Right edge
+
+    # Set equal aspect ratio
+    plt_ax.set_aspect('equal')
+
+    # Show the plot
+    plt.show()
