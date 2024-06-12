@@ -594,7 +594,7 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     assert (yb <=yt ).all()
     assert (xbl<=xbr).all()
     assert (xtl<=xtr).all()
-    
+
     #For now I assume they're all the same device/dtype. Maybe I'll add an assertion sometime later.
     dtype  = yb.dtype
     device = yb.device
@@ -616,6 +616,11 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     oxtr=xrs[1:  ].flatten()
 
     assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape==(w*n,)
+
+    #Expensive internal assertions. 
+    assert (oyb <=oyt ).all()
+    assert (oxbl<=oxbr).all()
+    assert (oxtl<=oxtr).all()
 
     return oyb, oyt, oxbl, oxbr, oxtl, oxtr
 
@@ -695,8 +700,8 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     """
     Given a triangle, returns two h-traps
     Like subdivide_htraps, the result will be totally flat because this is really just for integrals over textures anyway...
+    No assumptions are made about the ordering of the points on these triangles! It is this function's responsibility to make sure they don't make negative areas etc.
     Checked: THIS FUNCTION IS CORRECT (checked via demo_triangles_to_htraps visually)
-
     """
 
 
@@ -716,7 +721,7 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     xm_other = torch.lerp(xb, xt, alpha)
 
     #Make sure the left and right points correctly identified.
-    xml, xmr = sort_xy_by_x(xm, xm_other)
+    xml, xmr = torch.minimum(xm, xm_other), torch.maximum(xm, xm_other)
 
     #Now for the upper h-traps (a trapezoid with two idential points we consider a trapezoid here)
     Uyb  = ym
@@ -778,50 +783,50 @@ def demo_triangles_to_htraps():
     # Show the plot
     plt.show()
 
+def demo_triangle_to_htraps_to_rects():
+    # Generate random triangle vertices
+    n = 1
+    ax = torch.rand(n)
+    ay = torch.rand(n)
+    bx = torch.rand(n)
+    by = torch.rand(n)
+    cx = torch.rand(n)
+    cy = torch.rand(n)
 
-# Generate random triangle vertices
-n = 1
-ax = torch.rand(n)
-ay = torch.rand(n)
-bx = torch.rand(n)
-by = torch.rand(n)
-cx = torch.rand(n)
-cy = torch.rand(n)
+    # Convert the triangles to htraps
+    yb, yt, xbl, xbr, xtl, xtr = tris_to_htraps(ax, ay, bx, by, cx, cy)
 
-# Convert the triangles to htraps
-yb, yt, xbl, xbr, xtl, xtr = tris_to_htraps(ax, ay, bx, by, cx, cy)
+    # Randomly choose w between 1 and 20
+    w = np.random.randint(1, 21)
 
-# Randomly choose w between 1 and 20
-w = np.random.randint(1, 21)
+    # Subdivide the htraps
+    oyb, oyt, oxbl, oxbr, oxtl, oxtr = subdivide_htraps(w, yb, yt, xbl, xbr, xtl, xtr)
 
-# Subdivide the htraps
-oyb, oyt, oxbl, oxbr, oxtl, oxtr = subdivide_htraps(w, yb, yt, xbl, xbr, xtl, xtr)
+    # Get the inscribed rectangle bounds for each subdivided htrap
+    y0, y1, x0, x1 = htraps_to_inner_rects(oyb, oyt, oxbl, oxbr, oxtl, oxtr)
 
-# Get the inscribed rectangle bounds for each subdivided htrap
-y0, y1, x0, x1 = htraps_to_inner_rects(oyb, oyt, oxbl, oxbr, oxtl, oxtr)
+    # Create a figure and axis
+    fig, plt_ax = plt.subplots()
 
-# Create a figure and axis
-fig, plt_ax = plt.subplots()
+    # Plot the triangle
+    plt_ax.plot([ax.item(), bx.item(), cx.item(), ax.item()], [ay.item(), by.item(), cy.item(), ay.item()], 'b-')
 
-# Plot the triangle
-plt_ax.plot([ax.item(), bx.item(), cx.item(), ax.item()], [ay.item(), by.item(), cy.item(), ay.item()], 'b-')
+    # Plot the subdivided htraps
+    for i in range(len(oyb)):
+        plt_ax.plot([oxbl[i].item(), oxbr[i].item()], [oyb[i].item(), oyb[i].item()], 'r-')  # Bottom edge
+        plt_ax.plot([oxtl[i].item(), oxtr[i].item()], [oyt[i].item(), oyt[i].item()], 'r-')  # Top edge
+        plt_ax.plot([oxbl[i].item(), oxtl[i].item()], [oyb[i].item(), oyt[i].item()], 'r-')  # Left edge
+        plt_ax.plot([oxbr[i].item(), oxtr[i].item()], [oyb[i].item(), oyt[i].item()], 'r-')  # Right edge
 
-# Plot the subdivided htraps
-for i in range(len(oyb)):
-    plt_ax.plot([oxbl[i].item(), oxbr[i].item()], [oyb[i].item(), oyb[i].item()], 'r-')  # Bottom edge
-    plt_ax.plot([oxtl[i].item(), oxtr[i].item()], [oyt[i].item(), oyt[i].item()], 'r-')  # Top edge
-    plt_ax.plot([oxbl[i].item(), oxtl[i].item()], [oyb[i].item(), oyt[i].item()], 'r-')  # Left edge
-    plt_ax.plot([oxbr[i].item(), oxtr[i].item()], [oyb[i].item(), oyt[i].item()], 'r-')  # Right edge
+    # Plot the inscribed rectangles for each subdivided htrap
+    for i in range(len(oyb)):
+        plt_ax.plot([x0[i].item(), x1[i].item()], [y0[i].item(), y0[i].item()], 'g-')  # Bottom edge
+        plt_ax.plot([x0[i].item(), x1[i].item()], [y1[i].item(), y1[i].item()], 'g-')  # Top edge
+        plt_ax.plot([x0[i].item(), x0[i].item()], [y0[i].item(), y1[i].item()], 'g-')  # Left edge
+        plt_ax.plot([x1[i].item(), x1[i].item()], [y0[i].item(), y1[i].item()], 'g-')  # Right edge
 
-# Plot the inscribed rectangles for each subdivided htrap
-for i in range(len(oyb)):
-    plt_ax.plot([x0[i].item(), x1[i].item()], [y0[i].item(), y0[i].item()], 'g-')  # Bottom edge
-    plt_ax.plot([x0[i].item(), x1[i].item()], [y1[i].item(), y1[i].item()], 'g-')  # Top edge
-    plt_ax.plot([x0[i].item(), x0[i].item()], [y0[i].item(), y1[i].item()], 'g-')  # Left edge
-    plt_ax.plot([x1[i].item(), x1[i].item()], [y0[i].item(), y1[i].item()], 'g-')  # Right edge
+    # Set equal aspect ratio
+    plt_ax.set_aspect('equal')
 
-# Set equal aspect ratio
-plt_ax.set_aspect('equal')
-
-# Show the plot
-plt.show()
+    # Show the plot
+    plt.show()
