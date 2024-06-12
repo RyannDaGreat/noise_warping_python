@@ -242,7 +242,7 @@ class IntegralTexture:
 
         #Deltas
         dx =x1 -x0
-        dy =y1 -x0
+        dy =y1 -y0
         dxq=x1q-x0q
         dyq=y1q-y0q
         
