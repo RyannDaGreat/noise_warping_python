@@ -318,7 +318,7 @@ def demo_integral_texture():
          >>> 1349.7982-246.5096
         ans = 1103.2885999999999
         #Good, they're the same...
-    """
+    """ 
 
 
     import rp
@@ -583,7 +583,41 @@ def demo_htraps_to_inner_rects():
     # Show the plot
     plt.show()
 
+def weave_cat(tensor1, tensor2):
+    """
+    We need this function to perform batching, without adding extra dimensions.
 
+
+    Interleaves two 1D tensors element by element. Both tensors must be on the same device
+    and have the same number of elements. The resulting tensor will also be on the same device.
+    
+    Parameters:
+    tensor1 (torch.Tensor): The first 1D tensor.
+    tensor2 (torch.Tensor): The second 1D tensor.
+    
+    Returns:
+    torch.Tensor: A new tensor containing the interleaved elements of the input tensors.
+    
+    Raises:
+    ValueError: If the input tensors do not have the same length.
+    
+    Example:
+    >>> tensor1 = torch.tensor([1, 2, 3], device='cuda')
+    >>> tensor2 = torch.tensor([4, 5, 6], device='cuda')
+    >>> weave_cat(tensor1, tensor2)
+    tensor([1, 4, 2, 5, 3, 6], device='cuda:0')
+    """
+    if tensor1.shape[0] != tensor2.shape[0]:
+        raise ValueError("Both tensors must have the same length")
+    
+    # Create an output tensor of the appropriate size on the same device as the input
+    output = torch.empty(tensor1.shape[0] * 2, device=tensor1.device, dtype=tensor1.dtype)
+    
+    # Interleave the tensors
+    output[0::2] = tensor1
+    output[1::2] = tensor2
+    
+    return output
 
 def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     """
@@ -619,12 +653,21 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     xrs = (xbr * betas + xtr * alphas)
 
     #o stands for output
-    oyb =ys [ :-1].flatten(0,1)
-    oxbl=xls[ :-1].flatten(0,1)
-    oxbr=xrs[ :-1].flatten(0,1)
-    oyt =ys [1:  ].flatten(0,1)
-    oxtl=xls[1:  ].flatten(0,1)
-    oxtr=xrs[1:  ].flatten(0,1)
+    oyb =ys [ :-1]
+    oxbl=xls[ :-1]
+    oxbr=xrs[ :-1]
+    oyt =ys [1:  ]
+    oxtl=xls[1:  ]
+    oxtr=xrs[1:  ]
+    assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape==(w,n)
+
+    #Flatten them
+    oyb  = einops.rearrange(oyb , 'w n -> (w n)')
+    oxbl = einops.rearrange(oxbl, 'w n -> (w n)')
+    oxbr = einops.rearrange(oxbr, 'w n -> (w n)')
+    oyt  = einops.rearrange(oyt , 'w n -> (w n)')
+    oxtl = einops.rearrange(oxtl, 'w n -> (w n)')
+    oxtr = einops.rearrange(oxtr, 'w n -> (w n)')
 
     assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape==(w*n,)
 
@@ -754,14 +797,23 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     Lxtr = xmr
 
     #Now combine the lower and upper h-traps into one flat list of h-traps
-    yb  = torch.cat((Lyb , Uyb ))
-    yt  = torch.cat((Lyt , Uyt ))
-    xbl = torch.cat((Lxbl, Uxbl))
-    xbr = torch.cat((Lxbr, Uxbr))
-    xtl = torch.cat((Lxtl, Uxtl))
-    xtr = torch.cat((Lxtr, Uxtr))
+    yb  = torch.stack((Lyb , Uyb ))
+    yt  = torch.stack((Lyt , Uyt ))
+    xbl = torch.stack((Lxbl, Uxbl))
+    xbr = torch.stack((Lxbr, Uxbr))
+    xtl = torch.stack((Lxtl, Uxtl))
+    xtr = torch.stack((Lxtr, Uxtr))
+    assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
 
-    assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(n*2,)
+    #Flatten them - here 's' represents 'side' of which there are two (lower, upper)
+    oyb  = einops.rearrange(oyb , 's n -> (s n)')
+    oxbl = einops.rearrange(oxbl, 's n -> (s n)')
+    oxbr = einops.rearrange(oxbr, 's n -> (s n)')
+    oyt  = einops.rearrange(oyt , 's n -> (s n)')
+    oxtl = einops.rearrange(oxtl, 's n -> (s n)')
+    oxtr = einops.rearrange(oxtr, 's n -> (s n)')
+
+    assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2*n,)
 
     return yb, yt, xbl, xbr, xtl, xtr 
 
@@ -870,7 +922,6 @@ def tris_to_rects(w, ax, ay, bx, by, cx, cy):
 
     return y0, y1, x0, x1
 
-
 def demo_tris_to_rects():
     # Generate random triangle vertices
     import numpy as np
@@ -905,6 +956,77 @@ def demo_tris_to_rects():
     plt_ax.set_aspect('equal')
 
     # Show the plot
+    plt.show()
+
+def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
+    """
+    This method is naive and pretty simple...it just turns quads into tris...
+    ...doesn't check for convex hulls or anything...
+    ...chooses an arbitrary triangle pair: <0,1,2> and <1,2,3>
+    """
+
+    #The pair must share a diagonal edge
+    ax0, ay0, bx0, by0, cx0, cy0 = x0, y0, x2, y2, x1, y1 #First triangle
+    ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x2, y2, x3, y3 #Second triangle
+
+    assert x0.ndim == y0.ndim == x1.ndim == y1.ndim == x2.ndim == y2.ndim == x3.ndim == y3.ndim == 1
+    assert len(x0) == len(y0) == len(x1) == len(y1) == len(x2) == len(y2) == len(x3) == len(y3)
+    n = len(x0)
+
+    #Now combine the lower and upper h-traps into one flat list of h-traps
+    ax = torch.stack((ax0, ax1))
+    ay = torch.stack((ay0, ay1))
+    bx = torch.stack((bx0, bx1))
+    by = torch.stack((by0, by1))
+    cx = torch.stack((cx0, cx1))
+    cy = torch.stack((cy0, cy1))
+    assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2,n)
+
+    #Flatten them - here 't' represents number of triangles
+    ax = einops.rearrange(ax, 't n -> (t n)')
+    ay = einops.rearrange(ay, 't n -> (t n)')
+    bx = einops.rearrange(bx, 't n -> (t n)')
+    by = einops.rearrange(by, 't n -> (t n)')
+    cx = einops.rearrange(cx, 't n -> (t n)')
+    cy = einops.rearrange(cy, 't n -> (t n)')
+    assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2*n,)
+
+    return ax, ay, bx, by, cx, cy
+
+def quads_to_tris_demo():
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import torch
+
+    # Generate random coordinates for the quad
+    x0, y0 = np.random.rand(1), np.random.rand(1)
+    x1, y1 = np.random.rand(1), np.random.rand(1)
+    x2, y2 = np.random.rand(1), np.random.rand(1)
+    x3, y3 = np.random.rand(1), np.random.rand(1)
+
+    # Convert the coordinates to PyTorch tensors
+    x0, y0 = torch.from_numpy(x0), torch.from_numpy(y0)
+    x1, y1 = torch.from_numpy(x1), torch.from_numpy(y1)
+    x2, y2 = torch.from_numpy(x2), torch.from_numpy(y2)
+    x3, y3 = torch.from_numpy(x3), torch.from_numpy(y3)
+
+    # Call the quads_to_tris function to get the triangle coordinates
+    ax, ay, bx, by, cx, cy = quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3)
+
+    # Convert the PyTorch tensors back to NumPy arrays for plotting
+    ax, ay = ax.numpy(), ay.numpy()
+    bx, by = bx.numpy(), by.numpy()
+    cx, cy = cx.numpy(), cy.numpy()
+
+    # Plot the quad and its two triangles
+    fig, pax = plt.subplots()
+    pax.plot([x0, x1, x2, x3, x0], [y0, y1, y2, y3, y0], 'k-',linewidth=7.0)  # Quad
+    pax.plot([ax[0], bx[0], cx[0], ax[0]], [ay[0], by[0], cy[0], ay[0]], 'r-')  # Triangle 1
+    pax.plot([ax[1], bx[1], cx[1], ax[1]], [ay[1], by[1], cy[1], ay[1]], 'b-')  # Triangle 2
+    pax.set_xlim(0, 1)
+    pax.set_ylim(0, 1)
+    pax.set_aspect('equal')
+    pax.set_title('Quad and its Two Triangles')
     plt.show()
 
 
