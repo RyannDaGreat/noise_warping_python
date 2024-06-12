@@ -10,6 +10,8 @@ import einops
 #To fix this we need to have another dimension for the geomtry queries: a batch dimension.
 #Otherwise, we gonna have to loop for every pixel in screenspace using a python for-loop.
 #TODO: Make sure the mag filter is nearest! Noise texture recursion wont work otherwise...
+    #Perhaps: Maybe that can be done by rounding the UV values to the nearest texel - so we'll still integrate on the quads, but if they all fall into the same bin they're going to be the exact same
+    #NOTE: You have to round to different intervals for every texel level
 
 def calculate_subpixel_weights(x, y):
     """
@@ -615,12 +617,12 @@ def subdivide_htraps(w:int, yb, yt, xbl, xbr, xtl, xtr):
     xrs = (xbr * betas + xtr * alphas)
 
     #o stands for output
-    oyb =ys [ :-1].flatten()
-    oxbl=xls[ :-1].flatten()
-    oxbr=xrs[ :-1].flatten()
-    oyt =ys [1:  ].flatten()
-    oxtl=xls[1:  ].flatten()
-    oxtr=xrs[1:  ].flatten()
+    oyb =ys [ :-1].flatten(0,1)
+    oxbl=xls[ :-1].flatten(0,1)
+    oxbr=xrs[ :-1].flatten(0,1)
+    oyt =ys [1:  ].flatten(0,1)
+    oxtl=xls[1:  ].flatten(0,1)
+    oxtr=xrs[1:  ].flatten(0,1)
 
     assert oyb.shape==oxbl.shape==oxbr.shape==oyt.shape==oxtl.shape==oxtr.shape==(w*n,)
 
@@ -946,6 +948,7 @@ def uv_mapping_demo():
     x=x.flatten().to(device)
     y=y.flatten().to(device)
 
+    #Linear texture filtering
     output[:,y,x] = query_image_at_points(
         texture_image,
         au[y,x],
