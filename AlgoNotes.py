@@ -1099,8 +1099,9 @@ def uv_mapping_demo():
     import rp
 
     uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
-    uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+    texture_image=get_checkerboard_image(height=512,width=512)
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
 
 
@@ -1133,6 +1134,8 @@ def uv_mapping_demo():
 
     du=u[1: ,:-1 ]*TW
     dv=v[1: ,:-1 ]*TH
+    
+    ic(du.min(),du.max(),TW,TH)
 
     #These are shifted clockwise.
     # rp.display_image_slideshow([
@@ -1146,8 +1149,6 @@ def uv_mapping_demo():
     #     rp.full_range(rp.as_numpy_array(dv)),
     # ])
 
-    bu=cu=du=au
-    bv=cv=dv=av 
 
     OH,OW=au.shape
 
@@ -1178,32 +1179,32 @@ def uv_mapping_demo():
     tic()
 
     #My anisotropic filtering
-    w = 2 #Profile this as w goes up
+    w = 10 #Profile this as w goes up
     y0, y1, x0, x1 = quads_to_rects(
-        w  = w, 
-        x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
-        y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-        x1 = einops.rearrange(bu, 'OH OW -> (OH OW)'), 
-        y1 = einops.rearrange(bv, 'OH OW -> (OH OW)'), 
-        x2 = einops.rearrange(cu, 'OH OW -> (OH OW)'), 
-        y2 = einops.rearrange(cv, 'OH OW -> (OH OW)'), 
-        x3 = einops.rearrange(du, 'OH OW -> (OH OW)'),
-        y3 = einops.rearrange(dv, 'OH OW -> (OH OW)'), 
-    )
+         w  = w, 
+         x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
+         y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
+         x1 = einops.rearrange(bu, 'OH OW -> (OH OW)'), 
+         y1 = einops.rearrange(bv, 'OH OW -> (OH OW)'), 
+         x2 = einops.rearrange(cu, 'OH OW -> (OH OW)'), 
+         y2 = einops.rearrange(cv, 'OH OW -> (OH OW)'), 
+         x3 = einops.rearrange(du, 'OH OW -> (OH OW)'),
+         y3 = einops.rearrange(dv, 'OH OW -> (OH OW)'), 
+     )
 
 
     #SANITY CHECK: This works.............weird....
-    # y0, y1, x0, x1 = quads_to_rects(
-    #     w  = w, 
-    #     x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
-    #     y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-    #     x1 = einops.rearrange(au+.0020, 'OH OW -> (OH OW)'), 
-    #     y1 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-    #     x2 = einops.rearrange(au+.0020, 'OH OW -> (OH OW)'), 
-    #     y2 = einops.rearrange(av+.0020, 'OH OW -> (OH OW)'), 
-    #     x3 = einops.rearrange(au, 'OH OW -> (OH OW)'),
-    #     y3 = einops.rearrange(av+.0020, 'OH OW -> (OH OW)'), 
-    # )
+    #y0, y1, x0, x1 = quads_to_rects(
+        #w  = w, 
+        #x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
+        #y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
+        #x1 = einops.rearrange(au+.000020, 'OH OW -> (OH OW)'), 
+        #y1 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
+        #x2 = einops.rearrange(au+.000020, 'OH OW -> (OH OW)'), 
+        #y2 = einops.rearrange(av+.000020, 'OH OW -> (OH OW)'), 
+        #x3 = einops.rearrange(au, 'OH OW -> (OH OW)'),
+        #y3 = einops.rearrange(av+.000020, 'OH OW -> (OH OW)'), 
+    #)
     
     
     ptoc()
@@ -1248,5 +1249,5 @@ def uv_mapping_demo():
 
 
 
-ans=uv_mapping_demo().ryan_filter
-display_image(ans)
+ans=uv_mapping_demo()
+display_image(ans.ryan_filter)
