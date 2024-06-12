@@ -253,6 +253,11 @@ class IntegralTexture:
         #Calculating area is trivial
         area = dy*dx
 
+        #Some friendly expensive debugging assertions...
+        assert (dy>=0).all()
+        assert (dx>=0).all()
+        assert (area>=0).all()
+
         #This is based on the following fact, extended to 2d:
         #    ∀ a,b ∈ ℝ : a - b = (a % 1) + (⌊a⌋ - ⌊b⌋) - (b % 1)
         #    I have drawings in my notes about this. Sorry future reader lol. Maybe one day I'll draw it in unicode for you.
@@ -1123,7 +1128,7 @@ def uv_mapping_demo():
 
     tic()
     #My anisotropic filtering
-    w = 50 #Profile this as w goes up
+    w = 5 #Profile this as w goes up
     y0, y1, x0, x1 = quads_to_rects(
         w, 
         einops.rearrange(au, 'OH OW -> (OH OW)'), 
