@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import itertools
+import matplotlib.pyplot as plt
 import einops
 
 def calculate_subpixel_weights(x, y):
@@ -503,7 +504,6 @@ def htraps_to_inner_rects(yb, yt, xbl, xbr, xtl, xtr):
 
 def demo_htraps_to_inner_rects():
     import matplotlib.pyplot as plt
-    import numpy as np
     import torch
 
 
@@ -626,7 +626,11 @@ def demo_subdivide_htrap_rects():
     plt.show()
 
 
-
+def tris_to_htraps(ax, ay, bx, by, cx, cy):
+    """
+    Given a triangle, returns two h-traps
+    Like subdivide_htraps, the result will be totally flat because this is really just for integrals over textures anyway...
+    """
 
 
 
