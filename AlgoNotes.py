@@ -658,11 +658,42 @@ def demo_subdivide_htrap_rects():
     plt.show()
 
 
+def ilerp(start, end, values):
+    """
+    Inverse linear interpolation between start and end values based on values.
+
+    Returns weights such that torch.lerp(start, end, weights) == values
+
+    Warning: Might have NaN's!
+
+    Args:
+        start (torch.Tensor): The starting values of the interpolation.
+        end (torch.Tensor): The ending values of the interpolation.
+        values (torch.Tensor): The interpolated values between start and end.
+
+    Returns:
+        torch.Tensor: The computed values that would yield the given interpolated values.
+        
+    EXAMPLE:
+        start = torch.tensor([1.0, 2.0])
+        end = torch.tensor([5.0, 10.0])
+        interpolated_values = torch.tensor([3.0, 6.0])
+
+        values = ilerp(start, end, interpolated_values)
+        print(values)  # Output: tensor([0.5000, 0.5000])
+    """
+    return (values - start) / (end - start)
+
 def tris_to_htraps(ax, ay, bx, by, cx, cy):
     """
     Given a triangle, returns two h-traps
     Like subdivide_htraps, the result will be totally flat because this is really just for integrals over textures anyway...
     """
+
+
+    assert ax.ndim == ay.ndim == bx.ndim == by.ndim == cx.ndim == cy.ndim == 1
+    assert len(ax) == len(ay) == len(bx) == len(by) == len(cx) == len(cy)
+    n=len(ax)
 
     #Notation in this function: t, m, b stand for top middle and bottom - aka y0, y1, and y2 respectively.
 
@@ -671,11 +702,39 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     assert (yt>=ym).all(), "Internal assertion - sort_xy_by_y shouldn't fail"
     assert (ym>=yb).all(), "Internal assertion - sort_xy_by_y shouldn't fail"
 
+    #The only case where we would get nan is when yb==ym==yt, so the alpha doesn't matter in that case. Might as well be 1/2 - why not.
+    alpha = ilerp(yb, yt, ym).nan_to_num(.5)
+    xm_other = torch.lerp(xb, xt, alpha)
 
+    #Make sure the left and right points correctly identified.
+    xml, xmr = sort_xy_by_x(xm, xm_other)
 
+    #Now for the upper h-traps (a trapezoid with two idential points we consider a trapezoid here)
+    Uyb  = ym
+    Uyt  = yt
+    Uxbl = xml
+    Uxbr = xmr
+    Uxtl = xt
+    Uxtr = xt
 
+    #And now the lower h-traps
+    Lyb  = yb
+    Lyt  = ym
+    Lxbl = xml
+    Lxbr = xmr
+    Lxtl = xb
+    Lxtr = xb
 
+    #Now combine the lower and upper h-traps into one flat list of h-traps
+    yb  = torch.cat(Lyb , Uyb )
+    yt  = torch.cat(Lyt , Uyt )
+    xbl = torch.cat(Lxbl, Uxbl)
+    xbr = torch.cat(Lxbr, Uxbr)
+    xtl = torch.cat(Lxtl, Uxtl)
+    xtr = torch.cat(Lxtr, Uxtr)
 
+    assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(n*2,)
 
+    return yb, yt, xbl, xbr, xtl, xtr 
 
 
