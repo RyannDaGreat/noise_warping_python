@@ -271,18 +271,41 @@ class IntegralTexture:
         #    I have drawings in my notes about this. Sorry future reader lol. Maybe one day I'll draw it in unicode for you.
         #If this is a bottleneck, we can inline down to calculate_subpixel_weights to eliminate duplicate calculations
         s=self.cumsum
+        #DOUBLE CHECK THIS PARTz
+        A=lambda x,y:x*y #For area sanity checking
+        def A(x,y):
+            assert (x*y>0).all()
+            return x*y
+
+
         sum = (
             +s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)     \
-            -s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq \
+            +s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq \
             -s(x1r, y0r)     -s(xw, y0r)*dxq     +s(x0r, y0r)     
+        )
+        
+        area_sum = (
+            +A(x1r, y1r)     +A(xw, y1r)*dxq     -A(x0r, y1r)     \
+            +A(x1r, yh )*dyq +A(xw, yh )*dxq*dyq -A(x0r, yh )*dyq \
+            -A(x1r, y0r)     -A(xw, y0r)*dxq     +A(x0r, y0r)     
         )
 
         assert sum.shape ==(c,n,)
         assert area.shape==(  n,)
 
         ic(
+            dyq.min(),
+            dyq.max(),
+            dxq.min(),
+            dxq.max(),
+            dxq.abs().sum(),
+            dyq.abs().sum(),
             sum.min(),
             sum.max(),
+            area_sum.min(),
+            area_sum.max(),
+            area_sum.sum(),
+            area.sum(),
             area.min(),
             area.max(),
             self.cum_tex.min(),
@@ -290,7 +313,7 @@ class IntegralTexture:
             s(x1r, y1r).max(),
             s(x1r, y1r).min(),
             (+s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)    ).sum(),
-            (-s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq).sum(),
+            (+s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq).sum(),
             (-s(x1r, y0r)     -s(xw, y0r)*dxq     +s(x0r, y0r)    ).sum(),
             "Cheeteo",
         )
@@ -1195,9 +1218,10 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
 def uv_mapping_demo():
     #uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
     uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
-    #uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
-    texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+    uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     texture_image=get_checkerboard_image(height=512*3,width=512*3)
+    texture_image=np.ones_like(texture_image)/2
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
 
     output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
@@ -1207,7 +1231,7 @@ def uv_mapping_demo():
 
 
 
-
+ans=uv_mapping_demo()
 
 
 
@@ -1216,12 +1240,23 @@ def uv_mapping_demo():
 # display_image(ans.ryan_filter)
 
 #uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
-uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
-uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
-texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
-texture_image=get_checkerboard_image(height=512*3,width=512*3)
+# uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
+# uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+# texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+# texture_image=get_checkerboard_image(height=512*3,width=512*3)
 
-texture_image = rp.as_float_image(rp.as_rgb_image(texture_image)).astype(np.float16)
+# texture_image = rp.as_float_image(rp.as_rgb_image(texture_image)).astype(np.float16)
+# texture_image = np.random.randn(4096,4096,3)
+# texture_image -=.5
+# texture_image /= 4
+# texture_image+=.5
 
-output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
+# output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
 
+# ###
+# o=output.ryan_filter+0
+# o-=.5
+# o*=output.area**.5
+# o/=1
+# o+=.5
+# display_image(o)
