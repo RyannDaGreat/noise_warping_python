@@ -70,8 +70,9 @@ def query_image_at_points(image, x, y):
     assert y.ndim == 1, 'y should be a vector'
     assert len(x) == len(y), "x and y must have the same length"
 
-    x=x.floor()
-    y=y.floor()
+    #Sanity checking...
+    # x=x.floor()
+    # y=y.floor()
 
     c, h, w = image.shape
     n = len(x)
@@ -1237,7 +1238,7 @@ def uv_mapping_demo():
     uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     uvl_image = as_torch_image(uvl_image)
 
-    u,v= rp.xy_float_images(256,256)
+    u,v= rp.xy_float_images(1024,1024)
     uvl_image = as_torch_image(compose_image_from_channels(u,v,v*0))
     # uvl_image = uvl_image * 10 #Scale the UV map for repeating textures...
     
@@ -1354,3 +1355,16 @@ ic(
 # o/=1
 # o+=.5
 # display_image(o)
+print("""NEW HYPOTHESIS:
+Since the sums are done correctly (I checked),
+and I get sqrt(2) when I don't use interpolation...
+and the stdev is always >0 with sufficiently large texture (hovering around 1.3 when not using interp by flooring them...)
+the problem is isolated to when I multiply by area**.5.
+The situation where this could hurt: 
+    What if a polygon overlaps twice on itself?
+    If there's overlap within the average, the std would go up, because the average wouldn't be brought down torwards zero as much...
+    Suppose the quad's two triangles fold on top of one another...
+    This would result in its std effectively having half the sample size but we still multiply by sqrt(area), which would be twice as large...
+        AKA sqrt(2)
+    The problem here must be somewhere in the geometry???
+""")
