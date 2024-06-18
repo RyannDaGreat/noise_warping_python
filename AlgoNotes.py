@@ -1234,6 +1234,13 @@ def uv_mapping_demo():
     uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     uvl_image = as_torch_image(uvl_image)
     uvl_image = uvl_image * 10 #Scale the UV map for repeating textures...
+
+    u,v= rp.xy_float_images(256,256)
+    uvl_image = as_torch_image(compose_image_from_channels(u,v,v*0))
+    
+    
+
+    
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     texture_image=get_checkerboard_image(height=512*3,width=512*3)
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
