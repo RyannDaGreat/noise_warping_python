@@ -1236,28 +1236,31 @@ def uv_mapping_demo():
     # uvl_image = rp.load_image('/Users/ryan/Downloads/BlendeROutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
     uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     uvl_image = as_torch_image(uvl_image)
-    uvl_image = uvl_image * 10 #Scale the UV map for repeating textures...
 
     u,v= rp.xy_float_images(256,256)
     uvl_image = as_torch_image(compose_image_from_channels(u,v,v*0))
+    # uvl_image = uvl_image * 10 #Scale the UV map for repeating textures...
     
     
 
     
-    #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+    texture_image = rp.load_image('/Users/ryan/Downloads/lena.png',use_cache=True)
     # texture_image=get_checkerboard_image(height=512*3,width=512*3)
     # texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
     # texture_image[:]=-1
     # texture_image=rp.as_torch_image(texture_image)
     # texture_image=torch.randn_like(texture_image)
-    texture_image=torch.randn(3,2000,2000)
+    # texture_image=torch.randn(3,2000,2000)
 
 
     output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
     ic(texture_image.shape,output.ryan_filter.shape)
+    
 
     #When texture resolution is too low, then output std is too low even with *output.area**.5...this makes sense.
-    output.noisewarp = output.ryan_filter*(torch.maximum(output.area,torch.ones_like(output.area)))**.5
+    noise_boost=(torch.maximum(output.area,torch.ones_like(output.area)))**.5
+    noise_boost=output.area**.5
+    output.noisewarp = output.ryan_filter*noise_boost
     # output.noisewarp_bad = output.ryan_filter*output.area**.7 #Just to sanity-check that the variance really is working right...
 
     ic(output.noisewarp.std()) #Why is this not 1? It's like 1.3...at all resolutions so not just the edge issues...
