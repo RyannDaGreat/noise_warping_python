@@ -1219,9 +1219,11 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
 
 
 def uv_mapping_demo():
-    #uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
-    uvl_image = rp.load_image('/Users/ryan/Downloads/BlendeROutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
+    uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
+    # uvl_image = rp.load_image('/Users/ryan/Downloads/BlendeROutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
     # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    uvl_image = as_torch_image(uvl_image)
+    uvl_image = uvl_image * 1 #Scale the UV map for repeating textures...
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     texture_image=get_checkerboard_image(height=512*3,width=512*3)
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
@@ -1234,7 +1236,9 @@ def uv_mapping_demo():
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
-    output.noisewarp_bad = output.ryan_filter*output.area**.7
+    output.noisewarp_bad = output.ryan_filter*output.area**.7 #Just to sanity-check that the variance really is working right...
+
+    ic(out.noisewarp.std()) #Why is this not 1? It's like 1.3...
 
     return output
 
