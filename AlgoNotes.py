@@ -1,3 +1,4 @@
+from rp import *
 from distutils.errors import DistutilsModuleError
 import torch
 import itertools
@@ -258,6 +259,8 @@ class IntegralTexture:
         #Some friendly expensive debugging assertions...
         assert (dy>=0).all()
         assert (dx>=0).all()
+        assert (dyq>=0).all()
+        assert (dxq>=0).all()
         assert (area>=0).all()
 
 
@@ -1217,29 +1220,42 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
 
 def uv_mapping_demo():
     #uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
-    uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
-    uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    uvl_image = rp.load_image('/Users/ryan/Downloads/BlendeROutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
+    # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     texture_image=get_checkerboard_image(height=512*3,width=512*3)
-    texture_image=np.ones_like(texture_image)/2
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
+    texture_image[:]=-1
+    texture_image=rp.as_torch_image(texture_image)
+    texture_image=torch.randn_like(texture_image)
+    texture_image=torch.randn(3,10000,10000)
 
     output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
+    ic(texture_image.shape,output.ryan_filter.shape)
 
+    output.noisewarp = output.ryan_filter*output.area**.5
+    output.noisewarp_bad = output.ryan_filter*output.area**.7
 
     return output
 
 
 
-ans=uv_mapping_demo()
-
+out=uv_mapping_demo()
+# rp.display_image(rp.full_range(out.ryan_filter))
+rp.display_image(out.noisewarp/10+.5)
+ic(
+    out.ryan_filter.min(),
+    out.ryan_filter.max(),
+    out.ryan_filter.mean(),
+)
 
 
 
 # ans=uv_mapping_demo()
 # display_image(ans.ryan_filter)
 
-#uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
+#uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',
+# use_cache=True)
 # uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
 # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
 # texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
