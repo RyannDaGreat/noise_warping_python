@@ -70,10 +70,6 @@ def query_image_at_points(image, x, y):
     assert y.ndim == 1, 'y should be a vector'
     assert len(x) == len(y), "x and y must have the same length"
 
-    #Sanity checking...
-    # x=x.floor()
-    # y=y.floor()
-
     c, h, w = image.shape
     n = len(x)
 
@@ -253,16 +249,6 @@ class IntegralTexture:
         dxq=x1q-x0q
         dyq=y1q-y0q
         
-
-        ic(
-            x0.min(),x0.max(),
-            x1.min(),x1.max(),
-            y0.min(),y0.max(),
-            y1.min(),y1.max(),
-            dx.min(),dx.max(),
-            dy.min(),dy.max(),
-        )
-
         #Duplicate height and width across vectors
         xw = x0*0+w
         yh = x0*0+h
@@ -1055,6 +1041,7 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     This method is naive and pretty simple...it just turns quads into tris...
     ...doesn't check for convex hulls or anything...
     ...chooses an arbitrary triangle pair: <0,1,2> and <1,2,3>
+    TODO: Make sure they NEVER fold in on each other or else the STD will be screwed up due to duplicate elements!
     """
 
     #The pair must share a diagonal edge
@@ -1072,7 +1059,16 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     by = torch.stack((by0, by1))
     cx = torch.stack((cx0, cx1))
     cy = torch.stack((cy0, cy1))
-    assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2,n)
+
+    #TEST Will just one triangle fix the std problem?
+    # ax = torch.stack((ax0, ))
+    # ay = torch.stack((ay0, ))
+    # bx = torch.stack((bx0, ))
+    # by = torch.stack((by0, ))
+    # cx = torch.stack((cx0, ))
+    # cy = torch.stack((cy0, ))
+
+    # assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2,n)
 
     #Flatten them - here 't' represents number of triangles
     ax = einops.rearrange(ax, 't n -> (n t)')
@@ -1081,7 +1077,7 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     by = einops.rearrange(by, 't n -> (n t)')
     cx = einops.rearrange(cx, 't n -> (n t)')
     cy = einops.rearrange(cy, 't n -> (n t)')
-    assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2*n,)
+    # assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2*n,)
 
     return ax, ay, bx, by, cx, cy
 
@@ -1237,83 +1233,22 @@ def uv_mapping_demo():
     # uvl_image = rp.load_image('/Users/ryan/Downloads/BlendeROutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
     uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     uvl_image = as_torch_image(uvl_image)
-
-    u,v= rp.xy_float_images(1024,1024)
-    uvl_image = as_torch_image(compose_image_from_channels(u,v,v*0))
-    # uvl_image = uvl_image * 10 #Scale the UV map for repeating textures...
-    
-    
-
-    
-    texture_image = rp.load_image('/Users/ryan/Downloads/lena.png',use_cache=True)
-    # texture_image=get_checkerboard_image(height=512*3,width=512*3)
-    # texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
-    # texture_image[:]=-1
-    # texture_image=rp.as_torch_image(texture_image)
-    # texture_image=torch.randn_like(texture_image)
-    # texture_image=torch.randn(3,2000,2000)
-
+    uvl_image = uvl_image * 1 #Scale the UV map for repeating textures...
+    #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+    texture_image=get_checkerboard_image(height=512*3,width=512*3)
+    texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
+    texture_image[:]=-1
+    texture_image=rp.as_torch_image(texture_image)
+    texture_image=torch.randn_like(texture_image)
+    texture_image=torch.randn(3,1000,1000)
 
     output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
     ic(texture_image.shape,output.ryan_filter.shape)
-    
 
-    #When texture resolution is too low, then output std is too low even with *output.area**.5...this makes sense.
-    noise_boost=(torch.maximum(output.area,torch.ones_like(output.area)))**.5
-    noise_boost=output.area**.5
-    output.noisewarp = output.ryan_filter*noise_boost
-    # output.noisewarp_bad = output.ryan_filter*output.area**.7 #Just to sanity-check that the variance really is working right...
+    output.noisewarp = output.ryan_filter*output.area**.5
+    output.noisewarp_bad = output.ryan_filter*output.area**.7 #Just to sanity-check that the variance really is working right...
 
-    ic(output.noisewarp.std()) #Why is this not 1? It's like 1.3...at all resolutions so not just the edge issues...
-    #Speaking of which why do the edges fuck it up? (when multiplying UV by large number...)
-    #When going from  uvl_image * 1 to 10, dxq.max() goes haywire from 6 to 88154...wtf???
-    #Why does multiplying UV change mean? It shouldn't...
-    # #When uvl_image*=10:
-    #     ic| x0.min(): tensor(3533.9355, dtype=torch.float64)
-    #         x0.max(): tensor(98679.2309, dtype=torch.float64)
-    #         x1.min(): tensor(3540.6224, dtype=torch.float64)
-    #         x1.max(): tensor(98681.6406, dtype=torch.float64)
-    #         y0.min(): tensor(6988.5254, dtype=torch.float64)
-    #         y0.max(): tensor(109648.3690, dtype=torch.float64)
-    #         y1.min(): tensor(7013.9411, dtype=torch.float64)
-    #         y1.max(): tensor(111718.7500, dtype=torch.float64)
-    #         dx.min(): tensor(0., dtype=torch.float64)
-    #         dx.max(): tensor(81036.9852, dtype=torch.float64)
-    #         dy.min(): tensor(0., dtype=torch.float64)
-    #         dy.max(): tensor(46373.9678, dtype=torch.float64)
-
-    # #When uvl_image*=1:
-    #     ic| x0.min(): tensor(353.3936, dtype=torch.float64)
-    #         x0.max(): tensor(9867.9231, dtype=torch.float64)
-    #         x1.min(): tensor(354.0622, dtype=torch.float64)
-    #         x1.max(): tensor(9868.1641, dtype=torch.float64)
-    #         y0.min(): tensor(698.8525, dtype=torch.float64)
-    #         y0.max(): tensor(10964.8369, dtype=torch.float64)
-    #         y1.min(): tensor(701.3941, dtype=torch.float64)
-    #         y1.max(): tensor(11171.8750, dtype=torch.float64)
-    #         dx.min(): tensor(0., dtype=torch.float64)
-    #         dx.max(): tensor(8103.6985, dtype=torch.float64)
-    #         dy.min(): tensor(0., dtype=torch.float64)
-    #         dy.max(): tensor(4637.3968, dtype=torch.float64)
-    # #OK, that makes sense, the dxs's are 10 times as large...but what about Q's:
-    # #When uvl_image*=1:
- 
-    #     ic| dyq.min(): tensor(0., dtype=torch.float64)
-    #         dyq.max(): tensor(1., dtype=torch.float64)
-    #         dxq.min(): tensor(0., dtype=torch.float64)
-    #         dxq.max(): tensor(0., dtype=torch.float64)
-    #         dxq.abs().sum(): tensor(0., dtype=torch.float64)
-    #         dyq.abs().sum(): tensor(6., dtype=torch.float64)
-    # #When uvl_image*=10:
-    #Ahh its not that crazy...
-        # ic| dyq.min(): tensor(0., dtype=torch.float64)
-        # dyq.max(): tensor(5., dtype=torch.float64)
-        # dxq.min(): tensor(0., dtype=torch.float64)
-        # dxq.max(): tensor(8., dtype=torch.float64)
-        # dxq.abs().sum(): tensor(45104., dtype=torch.float64)
-        # dyq.abs().sum(): tensor(46984., dtype=torch.float64)
-
-
+    ic(out.noisewarp.std()) #Why is this not 1? It's like 1.3...
 
     return output
 
@@ -1321,6 +1256,8 @@ def uv_mapping_demo():
 
 out=uv_mapping_demo()
 # rp.display_image(rp.full_range(out.ryan_filter))
+rp.display_image(out.noisewarp/10+.5)
+rp.display_image(out.noisewarp/10+.5)
 rp.display_image(out.noisewarp/10+.5)
 ic(
     out.ryan_filter.min(),
@@ -1355,16 +1292,3 @@ ic(
 # o/=1
 # o+=.5
 # display_image(o)
-print("""NEW HYPOTHESIS:
-Since the sums are done correctly (I checked),
-and I get sqrt(2) when I don't use interpolation...
-and the stdev is always >0 with sufficiently large texture (hovering around 1.3 when not using interp by flooring them...)
-the problem is isolated to when I multiply by area**.5.
-The situation where this could hurt: 
-    What if a polygon overlaps twice on itself?
-    If there's overlap within the average, the std would go up, because the average wouldn't be brought down torwards zero as much...
-    Suppose the quad's two triangles fold on top of one another...
-    This would result in its std effectively having half the sample size but we still multiply by sqrt(area), which would be twice as large...
-        AKA sqrt(2)
-    The problem here must be somewhere in the geometry???
-""")
