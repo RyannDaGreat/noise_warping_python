@@ -70,6 +70,9 @@ def query_image_at_points(image, x, y):
     assert y.ndim == 1, 'y should be a vector'
     assert len(x) == len(y), "x and y must have the same length"
 
+    x=x.floor()
+    y=y.floor()
+
     c, h, w = image.shape
     n = len(x)
 
@@ -1242,20 +1245,22 @@ def uv_mapping_demo():
 
     
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
-    texture_image=get_checkerboard_image(height=512*3,width=512*3)
-    texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
-    texture_image[:]=-1
-    texture_image=rp.as_torch_image(texture_image)
-    texture_image=torch.randn_like(texture_image)
-    texture_image=torch.randn(3,10000,10000)
+    # texture_image=get_checkerboard_image(height=512*3,width=512*3)
+    # texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
+    # texture_image[:]=-1
+    # texture_image=rp.as_torch_image(texture_image)
+    # texture_image=torch.randn_like(texture_image)
+    texture_image=torch.randn(3,2000,2000)
+
 
     output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
     ic(texture_image.shape,output.ryan_filter.shape)
 
-    output.noisewarp = output.ryan_filter*output.area**.5
-    output.noisewarp_bad = output.ryan_filter*output.area**.7 #Just to sanity-check that the variance really is working right...
+    #When texture resolution is too low, then output std is too low even with *output.area**.5...this makes sense.
+    output.noisewarp = output.ryan_filter*(torch.maximum(output.area,torch.ones_like(output.area)))**.5
+    # output.noisewarp_bad = output.ryan_filter*output.area**.7 #Just to sanity-check that the variance really is working right...
 
-    ic(out.noisewarp.std()) #Why is this not 1? It's like 1.3...at all resolutions so not just the edge issues...
+    ic(output.noisewarp.std()) #Why is this not 1? It's like 1.3...at all resolutions so not just the edge issues...
     #Speaking of which why do the edges fuck it up? (when multiplying UV by large number...)
     #When going from  uvl_image * 1 to 10, dxq.max() goes haywire from 6 to 88154...wtf???
     #Why does multiplying UV change mean? It shouldn't...
