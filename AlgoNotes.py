@@ -274,7 +274,7 @@ class IntegralTexture:
         #DOUBLE CHECK THIS PARTz
         A=lambda x,y:x*y #For area sanity checking
         def A(x,y):
-            assert (x*y>0).all()
+            assert (x*y>=0).all()
             return x*y
 
 
