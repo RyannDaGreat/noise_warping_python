@@ -1267,7 +1267,7 @@ def uv_mapping_demo():
     uvl_image = as_torch_image(compose_image_from_channels(u,v,v*0))
     
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=2)
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=10)
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
