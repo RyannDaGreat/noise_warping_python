@@ -916,7 +916,7 @@ def demo_triangles_to_htraps():
     # Show the plot
     plt.show()
 
-def demo_triangle_to_htraps_to_rects():
+def demo_triangle_to_htraps_to_rects(w=None):
     import numpy as np
     # Generate random triangle vertices
     n = 1
@@ -931,7 +931,7 @@ def demo_triangle_to_htraps_to_rects():
     yb, yt, xbl, xbr, xtl, xtr = tris_to_htraps(ax, ay, bx, by, cx, cy)
 
     # Randomly choose w between 1 and 20
-    w = np.random.randint(1, 21)
+    if w is None:w = np.random.randint(1, 21)
 
     # Subdivide the htraps
     oyb, oyt, oxbl, oxbr, oxtl, oxtr = subdivide_htraps(w, yb, yt, xbl, xbr, xtl, xtr)
@@ -1214,6 +1214,13 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
          y3 = einops.rearrange(dv, 'OH OW -> (OH OW)'), 
      )
 
+    #ULTIMATE SANITY CHECK. THIS SIMPLY PUTS THE RECTANGLES PIXEL BY PIXEL...
+    #....and indeed, the std goes to 1....perfectly....
+    y0 = (y   ).flatten()
+    y1 = (y+10 ).flatten()
+    x0 = (x   ).flatten()
+    x1 = (x*2 ).flatten()
+
 
     ptoc()
 
@@ -1238,7 +1245,7 @@ def uv_mapping_demo():
     uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     uvl_image = as_torch_image(uvl_image)
     uvl_image = uvl_image * 1 #Scale the UV map for repeating textures...
-    # texture_image = rp.load_image('/Users/ryan/Downloads/lena.png',use_cache=True)
+    texture_image = rp.load_image('/Users/ryan/Downloads/lena.png',use_cache=True)
     texture_image=get_checkerboard_image(height=512*1,width=512*1)
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
     # texture_image[:]=-1
@@ -1246,7 +1253,12 @@ def uv_mapping_demo():
     # texture_image=torch.randn_like(texture_image)
     texture_image=torch.randn(3,3000,3000)
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=5)
+
+    u,v= rp.xy_float_images(256,256)
+    uvl_image = as_torch_image(compose_image_from_channels(u,v,v*0))
+    
+
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=2)
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
@@ -1298,3 +1310,12 @@ ic(
 # o/=1
 # o+=.5
 # display_image(o)
+
+print("""
+TODO:
+Make sure triangles never overlap. If they do the area calculation doesn't hold for STD as there are duplicate values.
+Make sure that if we wrap around the texture, the std is scaled appropriately too - the std of the mean does NOT shrink when we loop around the texture multiple times!!!
+    In other words, simply returning area is NOT GOOD ENOUGH for calculating the STD.
+    Though, if the rectangles are disjoint, but overlap at certain pixels....how do we handle that??? What if a bunch of tiny rectangles occupy the same randn texel??
+        The correct thing to do is to multiply only be ONE because it's a single random variable...not averaged with anything...
+""")
