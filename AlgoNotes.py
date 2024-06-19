@@ -73,6 +73,9 @@ def query_image_at_points(image, x, y):
     c, h, w = image.shape
     n = len(x)
 
+    x=x.floor()
+    y=y.floor()
+
     # Calculate subpixel weights
     fx, fy, cx, cy, w1, w2, w3, w4 = calculate_subpixel_weights(x, y)
 
