@@ -1058,8 +1058,8 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     #The pair must share a diagonal edge
     ax0, ay0, bx0, by0, cx0, cy0 = x0, y0, x2, y2, x1, y1 #First triangle
     #CHOOSE ONE OF THE TWO FOLLOWING: (todo: auto-choose them so theres no overlap between the two tris)
-    # ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x2, y2, x3, y3 #Second triangle
-    ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x1, y1, x3, y3 #Second triangle
+    ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x2, y2, x3, y3 #Second triangle
+    # ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x1, y1, x3, y3 #Second triangle
 
     assert x0.ndim == y0.ndim == x1.ndim == y1.ndim == x2.ndim == y2.ndim == x3.ndim == y3.ndim == 1
     assert len(x0) == len(y0) == len(x1) == len(y1) == len(x2) == len(y2) == len(x3) == len(y3)
@@ -1074,12 +1074,12 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     cy = torch.stack((cy0, cy1))
 
     #TEST Will just one triangle fix the std problem?
-    ax = torch.stack((ax0, ))
-    ay = torch.stack((ay0, ))
-    bx = torch.stack((bx0, ))
-    by = torch.stack((by0, ))
-    cx = torch.stack((cx0, ))
-    cy = torch.stack((cy0, ))
+    # ax = torch.stack((ax0, ))
+    # ay = torch.stack((ay0, ))
+    # bx = torch.stack((bx0, ))
+    # by = torch.stack((by0, ))
+    # cx = torch.stack((cx0, ))
+    # cy = torch.stack((cy0, ))
 
     # assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2,n)
 
@@ -1260,7 +1260,7 @@ def uv_mapping_demo():
     # texture_image[:]=-1
     # texture_image=rp.as_torch_image(texture_image)
     # texture_image=torch.randn_like(texture_image)
-    texture_image=torch.randn(3,10000,10000)
+    texture_image=torch.randn(3,1000,1000)
 
 
     u,v= rp.xy_float_images(256,256)/5+.5
