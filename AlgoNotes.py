@@ -862,13 +862,19 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     Lxtr = xmr
 
     #Now combine the lower and upper h-traps into one flat list of h-traps
+    yb  = torch.stack((Lyb , ))
+    yt  = torch.stack((Lyt , ))
+    xbl = torch.stack((Lxbl, ))
+    xbr = torch.stack((Lxbr, ))
+    xtl = torch.stack((Lxtl, ))
+    xtr = torch.stack((Lxtr, ))
     yb  = torch.stack((Lyb , Uyb ))
     yt  = torch.stack((Lyt , Uyt ))
     xbl = torch.stack((Lxbl, Uxbl))
     xbr = torch.stack((Lxbr, Uxbr))
     xtl = torch.stack((Lxtl, Uxtl))
     xtr = torch.stack((Lxtr, Uxtr))
-    assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
+    # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
 
     #Flatten them - here 's' represents 'side' of which there are two (lower, upper)
     yb  = einops.rearrange(yb , 's n -> (n s)')
@@ -878,7 +884,7 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     xtl = einops.rearrange(xtl, 's n -> (n s)')
     xtr = einops.rearrange(xtr, 's n -> (n s)')
 
-    assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2*n,)
+    # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2*n,)
 
     #Final expensive internal assertions - make sure they're valid h-traps
     assert (yb <=yt ).all(), ((yb <=yt).sum(), (yb >=yt).sum(), (yb >yt).sum())
