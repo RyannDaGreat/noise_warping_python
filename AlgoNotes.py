@@ -1042,11 +1042,15 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     ...doesn't check for convex hulls or anything...
     ...chooses an arbitrary triangle pair: <0,1,2> and <1,2,3>
     TODO: Make sure they NEVER fold in on each other or else the STD will be screwed up due to duplicate elements!
+    TODO: All sets of 4 points can be split into triangles in exactly two different ways. Sometimes both of these ways result in non-overlapping triangles, but in some cases one of these ways does. Always choose the way that two triangles do NOT overlap! This can be done by permuting the order of the given quad if they overlap. This will be annoying to do. We must get an intersection test or something and fix it.
+    THIS IS BECAUSE AFTER I SANITY CHECKED A SINGLE TRIANGLE THE STANDARD DEVIATION RETURNED TO ONE
     """
 
     #The pair must share a diagonal edge
     ax0, ay0, bx0, by0, cx0, cy0 = x0, y0, x2, y2, x1, y1 #First triangle
-    ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x2, y2, x3, y3 #Second triangle
+    #CHOOSE ONE OF THE TWO FOLLOWING: (todo: auto-choose them so theres no overlap between the two tris)
+    # ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x2, y2, x3, y3 #Second triangle
+    ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x1, y1, x3, y3 #Second triangle
 
     assert x0.ndim == y0.ndim == x1.ndim == y1.ndim == x2.ndim == y2.ndim == x3.ndim == y3.ndim == 1
     assert len(x0) == len(y0) == len(x1) == len(y1) == len(x2) == len(y2) == len(x3) == len(y3)
@@ -1234,15 +1238,15 @@ def uv_mapping_demo():
     uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     uvl_image = as_torch_image(uvl_image)
     uvl_image = uvl_image * 1 #Scale the UV map for repeating textures...
-    #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
-    texture_image=get_checkerboard_image(height=512*3,width=512*3)
+    # texture_image = rp.load_image('/Users/ryan/Downloads/lena.png',use_cache=True)
+    texture_image=get_checkerboard_image(height=512*1,width=512*1)
     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
-    texture_image[:]=-1
-    texture_image=rp.as_torch_image(texture_image)
-    texture_image=torch.randn_like(texture_image)
-    texture_image=torch.randn(3,1000,1000)
+    # texture_image[:]=-1
+    # texture_image=rp.as_torch_image(texture_image)
+    # texture_image=torch.randn_like(texture_image)
+    texture_image=torch.randn(3,3000,3000)
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=5)
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
@@ -1256,9 +1260,11 @@ def uv_mapping_demo():
 
 out=uv_mapping_demo()
 # rp.display_image(rp.full_range(out.ryan_filter))
-rp.display_image(out.noisewarp/10+.5)
-rp.display_image(out.noisewarp/10+.5)
-rp.display_image(out.noisewarp/10+.5)
+# rp.display_image(out.noisewarp/10+.5)
+# rp.display_image(out.noisewarp/10+.5)
+rp.display_image(out.ryan_filter)
+rp.display_image(out.ryan_filter)
+rp.display_image(out.ryan_filter)
 ic(
     out.ryan_filter.min(),
     out.ryan_filter.max(),
