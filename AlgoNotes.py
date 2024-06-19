@@ -1065,12 +1065,12 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     cy = torch.stack((cy0, cy1))
 
     #TEST Will just one triangle fix the std problem?
-    # ax = torch.stack((ax0, ))
-    # ay = torch.stack((ay0, ))
-    # bx = torch.stack((bx0, ))
-    # by = torch.stack((by0, ))
-    # cx = torch.stack((cx0, ))
-    # cy = torch.stack((cy0, ))
+    ax = torch.stack((ax0, ))
+    ay = torch.stack((ay0, ))
+    bx = torch.stack((bx0, ))
+    by = torch.stack((by0, ))
+    cx = torch.stack((cx0, ))
+    cy = torch.stack((cy0, ))
 
     # assert ax.shape==ay.shape==bx.shape==by.shape==cx.shape==cy.shape==(2,n)
 
@@ -1216,10 +1216,10 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
 
     #ULTIMATE SANITY CHECK. THIS SIMPLY PUTS THE RECTANGLES PIXEL BY PIXEL...
     #....and indeed, the std goes to 1....perfectly....
-    y0 = (y   ).flatten()
-    y1 = (y+10 ).flatten()
-    x0 = (x   ).flatten()
-    x1 = (x*2 ).flatten()
+    # y0 = (y   ).flatten()
+    # y1 = (y+10 ).flatten()
+    # x0 = (x   ).flatten()
+    # x1 = (x*2 ).flatten()
 
 
     ptoc()
@@ -1251,10 +1251,10 @@ def uv_mapping_demo():
     # texture_image[:]=-1
     # texture_image=rp.as_torch_image(texture_image)
     # texture_image=torch.randn_like(texture_image)
-    texture_image=torch.randn(3,3000,3000)
+    texture_image=torch.randn(3,10000,10000)
 
 
-    u,v= rp.xy_float_images(256,256)
+    u,v= rp.xy_float_images(256,256)/5+.5
     uvl_image = as_torch_image(compose_image_from_channels(u,v,v*0))
     
 
@@ -1318,4 +1318,6 @@ Make sure that if we wrap around the texture, the std is scaled appropriately to
     In other words, simply returning area is NOT GOOD ENOUGH for calculating the STD.
     Though, if the rectangles are disjoint, but overlap at certain pixels....how do we handle that??? What if a bunch of tiny rectangles occupy the same randn texel??
         The correct thing to do is to multiply only be ONE because it's a single random variable...not averaged with anything...
+    This explains why it had high contrast along the discontinuous edges...
+    But it doesn't explain why we still have a std>1, that gets larger and smaller as we scale UV up and down...
 """)
