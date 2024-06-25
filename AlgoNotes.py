@@ -1267,7 +1267,7 @@ def uv_mapping_demo():
     uvl_image = as_torch_image(compose_image_from_channels(u,v,v*0))
     
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=10)
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=2)
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
@@ -1329,4 +1329,12 @@ Make sure that if we wrap around the texture, the std is scaled appropriately to
         The correct thing to do is to multiply only be ONE because it's a single random variable...not averaged with anything...
     This explains why it had high contrast along the discontinuous edges...
     But it doesn't explain why we still have a std>1, that gets larger and smaller as we scale UV up and down...
+
+
+When interpolating, not all STD's are created equal for same sized rect! 
+Imagine a 1px high horizontal rect. One fully containing pixels in its row, one half between. They have different numbers of elements each. They need to be scaled differerently.
+We need to address this somehow...
+But what about when multiple rects are skinny? Do we add up the stds???
+Simple solution: Force it. Just round. High res texture. This is what the floor func is doing. But its not ideal. (But it can work.)
+    Problem: Multiple adjacent rects are *correlated* and unless we have the *WHOLE POLYGON** estimated with horz rects, we can't do this right...
 """)
