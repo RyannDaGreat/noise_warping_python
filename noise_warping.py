@@ -65,6 +65,10 @@ def query_image_at_points(image, x, y):
 
     Checked: THIS FUNCTION IS CORRECT (checked via demo_query_image_at_points)
     """
+    
+    x=x.floor()
+    y=y.floor()
+
     assert image.ndim == 3, "image must be in CHW format"
     assert x.ndim == 1, 'x should be a vector'
     assert y.ndim == 1, 'y should be a vector'
@@ -1218,25 +1222,27 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
     return rp.gather_vars('linear nearest ryan_filter sum area')
 
 
-def uv_mapping_demo():
-    #uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
-    uvl_image = rp.load_image('/Users/ryan/Downloads/BlendeROutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
-    # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
-    #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
-    texture_image=get_checkerboard_image(height=512*3,width=512*3)
-    texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
-    texture_image[:]=-1
-    texture_image=rp.as_torch_image(texture_image)
-    texture_image=torch.randn_like(texture_image)
-    texture_image=torch.randn(3,10000,10000)
+# def uv_mapping_demo():
+#     #uvl_image = rp.load_image('uv_maps/triton_uvl_demo.exr',use_cache=True)
+#     uvl_image = rp.load_image('/Users/ryan/Downloads/BlendeROutput/ANIM_OUTPUT_BURBO/1414.exr',use_cache=False)
+#     # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+#     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+#     texture_image=get_checkerboard_image(height=512*3,width=512*3)
+#     texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
+#     texture_image[:]=-1
+#     texture_image=rp.as_torch_image(texture_image)
+#     texture_image=torch.randn_like(texture_image)
+#     texture_image=torch.randn(3,1000,1000)
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
-    ic(texture_image.shape,output.ryan_filter.shape)
+#     output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, W=5)
+#     ic(texture_image.shape,output.ryan_filter.shape)
 
-    output.noisewarp = output.ryan_filter*output.area**.5
-    output.noisewarp_bad = output.ryan_filter*output.area**.7
+#     output.noisewarp = output.ryan_filter*output.area**.5
+#     # output.noisewarp_bad = output.ryan_filter*output.area**.7
 
-    return output
+#     ic(output.noisewarp.std())
+
+#     return output
 
 
 
@@ -1275,20 +1281,24 @@ def uv_mapping_demo():
 
 if __name__=="__main__":
     uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutputKevinSpinner/UV_Label_Exr/Image0305.exr',use_cache=False)
-    # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
+    
+    uvl_image = np.zeros((256,256,3))
+    uvl_image[:,:,0] = xy_float_images(256,256)[0]
+    uvl_image[:,:,1] = xy_float_images(256,256)[1]
 
-    if 0:
-        texture_image=get_checkerboard_image(height=512*3,width=512*3)
-        texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
-        texture_image[:]=-1
-        texture_image=rp.as_torch_image(texture_image)
-        texture_image=torch.randn_like(texture_image)
-        texture_image=torch.randn(3,10000,10000)
+    if 1:
+        # texture_image=get_checkerboard_image(height=512*3,width=512*3)
+        # texture_image = rp.as_float_image(rp.as_rgb_image(texture_image))
+        # texture_image[:]=-1
+        # texture_image=rp.as_torch_image(texture_image)
+        # texture_image=torch.randn_like(texture_image)
+        texture_image=torch.randn(3,1000,1000)
 
-    texture_image= load_image('/Users/ryan/Downloads/KevinSpinner/frame_0002_point-cloud_geo_geo-retexture.jpg')
+    # texture_image= load_image('/Users/ryan/Downloads/KevinSpinner/frame_0002_point-cloud_geo_geo-retexture.jpg')
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image)
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=5)
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
@@ -1298,7 +1308,10 @@ if __name__=="__main__":
 
     rp.display_image(out.noisewarp/10+.5)
     ic(
-        out.ryan_filter.min(),
-        out.ryan_filter.max(),
-        out.ryan_filter.mean(),
+        out.noisewarp.min(),
+        out.noisewarp.max(),
+        out.noisewarp.mean(),
+        out.noisewarp.std(),
     )
+
+    input("Press Enter")
