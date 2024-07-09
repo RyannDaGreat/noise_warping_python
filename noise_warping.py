@@ -884,12 +884,12 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     # xtl = torch.stack((Uxtl,))
     # xtr = torch.stack((Uxtr,))
 
-    # yb  = torch.stack((Lyb ,))
-    # yt  = torch.stack((Lyt ,))
-    # xbl = torch.stack((Lxbl,))
-    # xbr = torch.stack((Lxbr,))
-    # xtl = torch.stack((Lxtl,))
-    # xtr = torch.stack((Lxtr,))
+    yb  = torch.stack((Lyb ,))
+    yt  = torch.stack((Lyt ,))
+    xbl = torch.stack((Lxbl,))
+    xbr = torch.stack((Lxbr,))
+    xtl = torch.stack((Lxtl,))
+    xtr = torch.stack((Lxtr,))
 
     # #What if I duplicate them? Answer: std --> 1.414 aka √2
     # yb  = torch.stack((Lyb ,) * 2)
@@ -930,12 +930,12 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     print("LYB=",(Lyb.floor()==Uyb.floor()).float().mean()) #77% of them are the same... doesn't explain much yet though most areas should still be 0 because of no boundary crossing...
 
 
-    yb  = torch.stack((Lyb , Uyb ))
-    yt  = torch.stack((Lyt , Uyt ))
-    xbl = torch.stack((Lxbl, Uxbl))
-    xbr = torch.stack((Lxbr, Uxbr))
-    xtl = torch.stack((Lxtl, Uxtl))
-    xtr = torch.stack((Lxtr, Uxtr))
+    # yb  = torch.stack((Lyb , Uyb ))
+    # yt  = torch.stack((Lyt , Uyt ))
+    # xbl = torch.stack((Lxbl, Uxbl))
+    # xbr = torch.stack((Lxbr, Uxbr))
+    # xtl = torch.stack((Lxtl, Uxtl))
+    # xtr = torch.stack((Lxtr, Uxtr))
 
 
     # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
@@ -1442,14 +1442,14 @@ if __name__=="__main__":
     
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     
-    nnnn=10
+    nnnn=2
     # nnnn=1024
     uvl_image = np.zeros((nnnn,nnnn,3))
     uvl_image[:,:,0] = xy_float_images(nnnn,nnnn)[0]
     uvl_image[:,:,1] = xy_float_images(nnnn,nnnn)[1]
     uvl_image[:,:,0] = uvl_image[:,:,0] * .7 + .3 *uvl_image[:,:,1]  #Makes it no longer sqrt2??
     uvl_image = uvl_image ** 4 #Add a bit of warpage
-    # uvl_image += np.random.randn(*uvl_image.shape)*.000000000001 #DISASTER LOL don't do that...WAIT...why is this a problem??
+    uvl_image += np.random.randn(*uvl_image.shape) #DISASTER LOL don't do that...WAIT...why is this a problem??
 
     if 1:
         # texture_image=get_checkerboard_image(height=512*3,width=512*3)
@@ -1461,7 +1461,7 @@ if __name__=="__main__":
 
     # texture_image= load_image('/Users/ryan/Downloads/KevinSpinner/frame_0002_point-cloud_geo_geo-retexture.jpg')
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=5, debug_plot=True)
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=20, debug_plot=True)
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
