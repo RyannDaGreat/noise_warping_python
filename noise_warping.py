@@ -1174,6 +1174,49 @@ def quads_to_rects(w, x0, y0, x1, y1, x2, y2, x3, y3):
 
 
 
+def quad_is_convex(x0, y0, x1, y1, x2, y2, x3, y3):
+    ux, uy = x1 - x0, y1 - y0
+    vx, vy = x2 - x1, y2 - y1
+    wx, wy = x3 - x2, y3 - y2
+    zx, zy = x0 - x3, y0 - y3
+    cross1 = ux * vy - uy * vx
+    cross2 = vx * wy - vy * wx
+    cross3 = wx * zy - wy * zx
+    cross4 = zx * uy - zy * ux
+    return ((cross1 >= 0) & (cross2 >= 0) & (cross3 >= 0) & (cross4 >= 0)) | \
+           ((cross1 <= 0) & (cross2 <= 0) & (cross3 <= 0) & (cross4 <= 0))
+
+def demo_quad_is_convex():
+    # Generate random quadrilaterals
+    num_quads = 25
+    x0, y0 = torch.rand(num_quads) * 10, torch.rand(num_quads) * 10
+    x1, y1 = torch.rand(num_quads) * 10, torch.rand(num_quads) * 10
+    x2, y2 = torch.rand(num_quads) * 10, torch.rand(num_quads) * 10
+    x3, y3 = torch.rand(num_quads) * 10, torch.rand(num_quads) * 10
+
+    # Check for convexity
+    is_convex = quad_is_convex(x0, y0, x1, y1, x2, y2, x3, y3)
+
+    # Plotting the quadrilaterals in separate subplots
+    fig, axes = plt.subplots(nrows=5, ncols=5, figsize=(15, 15))
+    axes = axes.flatten()
+
+    for i in range(num_quads):
+        xs = [x0[i], x1[i], x2[i], x3[i], x0[i]]
+        ys = [y0[i], y1[i], y2[i], y3[i], y0[i]]
+        color = 'green' if is_convex[i] else 'red'
+        axes[i].plot(xs, ys, marker='o', color=color)
+        axes[i].fill(xs, ys, alpha=0.3, color=color)
+        axes[i].set_xlim(0, 10)
+        axes[i].set_ylim(0, 10)
+        axes[i].set_title(f'Quad {i+1} - {"Convex" if is_convex[i] else "Non-Convex"}')
+        axes[i].set_aspect('equal')
+
+    plt.tight_layout()
+    plt.show()
+
+
+
 def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None, debug_plot=False):
 
     if not rp.is_torch_tensor(uv_image):
@@ -1247,7 +1290,18 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None, debug_plot=Fal
     qx2=einops.rearrange(cu, 'OH OW -> (OH OW)')# --> torch.Size([3, 255, 255, 40])
     qy2=einops.rearrange(cv, 'OH OW -> (OH OW)')# --> torch.Size([1, 255, 255, 40])
     qx3=einops.rearrange(du, 'OH OW -> (OH OW)') 
-    qy3=einops.rearrange(dv, 'OH OW -> (OH OW)') 
+    qy3=einops.rearrange(dv, 'OH OW -> (OH OW)')
+
+    #Effectively delete every non-convex quad by setting it to 0's
+    is_convex = quad_is_convex(qx0,qy0,qx1,qy1,qx2,qy2,qx3,qy3) 
+    qx0 *= is_convex
+    qy0 *= is_convex
+    qx1 *= is_convex
+    qy1 *= is_convex
+    qx2 *= is_convex
+    qy2 *= is_convex
+    qx3 *= is_convex
+    qy3 *= is_convex
 
     #My anisotropic filtering
     y0, y1, x0, x1 = quads_to_rects(
@@ -1389,7 +1443,14 @@ if __name__=="__main__":
     std_mea = output.noisewarp.flatten()
     std_mea = std_mea[std_mea!=0]
 
-    rp.display_image(out.noisewarp/10+.5)
+    rp.debug_comment(out.noisewarp.shape)# --> torch.Size([3, 255, 143])
+    rp.debug_comment(out.area.shape)# --> torch.Size([1, 255, 143])
+    rp.display_image(
+        rp.horizontally_concatenated_images(
+            rp.as_numpy_image(out.noisewarp / 10 + 0.5),
+            rp.as_numpy_array(out.area[0] == 0),
+        )
+    )
     ic(
         out.noisewarp.min(),
         out.noisewarp.max(),
@@ -1398,4 +1459,6 @@ if __name__=="__main__":
         std_mea.std(),
     )
 
-    input("Press Enter")
+    rp.pterm()
+
+    # input("Press Enter")
