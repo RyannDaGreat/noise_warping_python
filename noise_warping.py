@@ -1,4 +1,3 @@
-from doctest import NORMALIZE_WHITESPACE
 from rp import *
 from distutils.errors import DistutilsModuleError
 import torch
@@ -66,7 +65,6 @@ def query_image_at_points(image, x, y):
 
     Checked: THIS FUNCTION IS CORRECT (checked via demo_query_image_at_points)
     """
-
     assert image.ndim == 3, "image must be in CHW format"
     assert x.ndim == 1, 'x should be a vector'
     assert y.ndim == 1, 'y should be a vector'
@@ -216,13 +214,6 @@ class IntegralTexture:
         TODO: I should have made the signature consistent with y coming first. Oh well. Be careful!
         """
 
-        #Messing with variants like ceil, round, ceil + floor etc doesn't help
-        # x0=x0.floor()
-        # x1=x1.floor()
-        # y0=y0.floor()
-        # y1=y1.floor()
-
-
         assert x0.ndim == 1, 'x0 should be a vector'
         assert y0.ndim == 1, 'y0 should be a vector'
         assert x1.ndim == 1, 'x1 should be a vector'
@@ -305,15 +296,6 @@ class IntegralTexture:
         assert sum.shape ==(c,n,)
         assert area.shape==(  n,)
 
-        # #Sometimes DYQ and DXQ > 0. Thought this might help? Doesn't so squat though...# --> torch.Size([2601000])
-        # rp.debug_comment(dyq.shape)# --> torch.Size([3, 2601000])
-        # rp.debug_comment(sum.shape)# --> torch.Size([2601000])
-        # rp.debug_comment(area.shape)# --> torch.Size([2601000])
-        # sum[:,dyq>0] = 0 
-        # sum[:,dxq>0] = 0 
-        # area[dxq>0] = 0 
-        # area[dyq>0] = 0 
-
         ic(
             dyq.min(),
             dyq.max(),
@@ -331,9 +313,9 @@ class IntegralTexture:
             area.max(),
             self.cum_tex.min(),
             self.cum_tex.max(),
-            s(x1r, y1r).max(),# --> torch.Size([2601000])
-            s(x1r, y1r).min(),# --> torch.Size([3, 2601000])
-            (+s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)    ).sum(),# --> torch.Size([2601000])
+            s(x1r, y1r).max(),
+            s(x1r, y1r).min(),
+            (+s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)    ).sum(),
             (+s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq).sum(),
             (-s(x1r, y0r)     -s(xw, y0r)*dxq     +s(x0r, y0r)    ).sum(),
             "Cheeteo",
@@ -877,67 +859,12 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     Lxtr = xmr
 
     #Now combine the lower and upper h-traps into one flat list of h-traps
-    # yb  = torch.stack((Uyb ,))
-    # yt  = torch.stack((Uyt ,))
-    # xbl = torch.stack((Uxbl,))
-    # xbr = torch.stack((Uxbr,))
-    # xtl = torch.stack((Uxtl,))
-    # xtr = torch.stack((Uxtr,))
-
-    # yb  = torch.stack((Lyb ,))
-    # yt  = torch.stack((Lyt ,))
-    # xbl = torch.stack((Lxbl,))
-    # xbr = torch.stack((Lxbr,))
-    # xtl = torch.stack((Lxtl,))
-    # xtr = torch.stack((Lxtr,))
-
-    # #What if I duplicate them? Answer: std --> 1.414 aka √2
-    # yb  = torch.stack((Lyb ,) * 2)
-    # yt  = torch.stack((Lyt ,) * 2)
-    # xbl = torch.stack((Lxbl,) * 2)
-    # xbr = torch.stack((Lxbr,) * 2)
-    # xtl = torch.stack((Lxtl,) * 2)
-    # xtr = torch.stack((Lxtr,) * 2)
-
-    # #What if I triple them? Answer: std --> 1.7361 aka √3
-    #But this doesn't seem to affect it at *all* when we're not using a specially designed image???
-    # yb  = torch.stack((Lyb ,) * 3)
-    # yt  = torch.stack((Lyt ,) * 3)
-    # xbl = torch.stack((Lxbl,) * 3)
-    # xbr = torch.stack((Lxbr,) * 3)
-    # xtl = torch.stack((Lxtl,) * 3)
-    # xtr = torch.stack((Lxtr,) * 3)
-
-    # Try destroying one of the two tris to make sure it's passed properly...results in std=1...
-    # yb  = torch.stack((Lyb , Uyb  + .5))
-    # yt  = torch.stack((Lyt , Uyt  + .5))
-    # xbl = torch.stack((Lxbl, Uxbl + .5))
-    # xbr = torch.stack((Lxbr, Uxbr + .5))
-    # xtl = torch.stack((Lxtl, Uxtl + .5))
-    # xtr = torch.stack((Lxtr, Uxtr + .5))
-
-
-    #Always get std=√2 with this...indicating the two triangles are the same??
-    # yb  = torch.stack((Lyb , Uyb ))
-    # yt  = torch.stack((Lyt , Uyt ))
-    # xbl = torch.stack((Lxbl, Uxbl))
-    # xbr = torch.stack((Lxbr, Uxbr))
-    # xtl = torch.stack((Lxtl, Uxtl))
-    # xtr = torch.stack((Lxtr, Uxtr))
-
-    # print("LYB=",Lyb)
-    # print("UYB=",Uyb)
-    # print("LYB=",(Lyb.floor()==Uyb.floor()).float().mean()) #77% of them are the same... doesn't explain much yet though most areas should still be 0 because of no boundary crossing...
-
-
     yb  = torch.stack((Lyb , Uyb ))
     yt  = torch.stack((Lyt , Uyt ))
     xbl = torch.stack((Lxbl, Uxbl))
     xbr = torch.stack((Lxbr, Uxbr))
     xtl = torch.stack((Lxtl, Uxtl))
     xtr = torch.stack((Lxtr, Uxtr))
-
-
     # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
 
     #Flatten them - here 's' represents 'side' of which there are two (lower, upper)
@@ -1172,10 +1099,6 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     ax0, ay0, bx0, by0, cx0, cy0 = x0, y0, x2, y2, x1, y1 #First triangle
     ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x2, y2, x3, y3 #Second triangle
 
-    # #The pair must share a diagonal edge -- Wrong one...messes with STD...
-    # ax0, ay0, bx0, by0, cx0, cy0 = x0, y0, x1, y1, x3, y3 #First triangle
-    # ax1, ay1, bx1, by1, cx1, cy1 = x1, y1, x2, y2, x3, y3 #Second triangle
-
     assert x0.ndim == y0.ndim == x1.ndim == y1.ndim == x2.ndim == y2.ndim == x3.ndim == y3.ndim == 1
     assert len(x0) == len(y0) == len(x1) == len(y1) == len(x2) == len(y2) == len(x3) == len(y3)
     n = len(x0)
@@ -1240,6 +1163,7 @@ def quads_to_rects(w, x0, y0, x1, y1, x2, y2, x3, y3):
     """
     Given triangles, gives rectangles that approximate them both vertically and horizontally
     Checked: THIS FUNCTION IS CORRECT (checked via demo_tris_to_rects visually)
+    If both_directions is True, will do both h-traps and v-traps. After debugging, set to true maybe? Analyze it first...
     """
     #BATCH PRESERVES: Maybe. Entirely depends on its helper functions.
 
@@ -1358,20 +1282,6 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None, debug_plot=Fal
 
     sum  = einops.rearrange(sum , "C (OH OW R) -> C OH OW R", OH=OH, OW=OW)
     area = einops.rearrange(area, "  (OH OW R) -> 1 OH OW R", OH=OH, OW=OW)
-
-    print("Internal Std's:")
-    # rp.debug_comment(sum.shape)# --> torch.Size([3, 9, 9, 40])
-    # rp.debug_comment(area.shape)# --> torch.Size([1, 9, 9, 40])
-    nzsum  = sum[0].flatten()
-    nzarea = area.flatten()
-    nzsum  = nzsum [nzarea!=0]
-    nzarea = nzarea[nzarea!=0]
-    ic(
-        (nzsum / nzarea ** .5).std(),
-        (nzsum / nzarea ** .5).mean(),
-        nzarea.mean(-1),
-    )
-
     sum  = sum .sum(-1)
     area = area.sum(-1)
     ryan_filter = sum/area
