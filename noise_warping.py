@@ -217,10 +217,10 @@ class IntegralTexture:
         """
 
         #Messing with variants like ceil, round, ceil + floor etc doesn't help
-        x0=x0.floor()
-        x1=x1.floor()
-        y0=y0.floor()
-        y1=y1.floor()
+        # x0=x0.floor()
+        # x1=x1.floor()
+        # y0=y0.floor()
+        # y1=y1.floor()
 
 
         assert x0.ndim == 1, 'x0 should be a vector'
@@ -1110,19 +1110,43 @@ def demo_tris_to_rects():
     plt.show()
 
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 def display_quads_and_rects(quads, rects):
+    def draw_random_blue_rectangle(y0, y1, x0, x1, plt_ax):
+        def random_blue_color(blueness=0.5):
+            r = np.random.random() * (1 - blueness)
+            g = np.random.random() * (1 - blueness)
+            b = np.random.random() * (1 - blueness) + blueness
+            return (r, g, b)
+
+        rand = lambda: np.random.randn()  # So we can see if things overlap
+        x0, y0, x1, y1 = x0 + rand(), y0 + rand(), x1 + rand(), y1 + rand()
+
+        # Generate a random blue color with a random blueness factor
+        color = random_blue_color(np.random.random())
+
+        # Draw the rectangle outline with an alpha of 0.5
+        plt_ax.plot([x0.item(), x1.item(), x1.item(), x0.item(), x0.item()],
+                    [y0.item(), y0.item(), y1.item(), y1.item(), y0.item()],
+                    color=color, alpha=0.5)
+
+        # Fill the rectangle area with half the opacity of the outline
+        plt_ax.fill([x0.item(), x1.item(), x1.item(), x0.item()],
+                    [y0.item(), y0.item(), y1.item(), y1.item()],
+                    color=color, alpha=0.25)
+
     # Create a figure and axis
     fig, plt_ax = plt.subplots()
 
+    # Draw the quads
     for (x0, y0, x1, y1, x2, y2, x3, y3) in zip(*quads):
-        plt_ax.plot([x0, x1, x2, x3, x0], [y0, y1, y2, y3, y0], 'k-',linewidth=7.0, alpha = .3)  # Quad
+        plt_ax.plot([x0, x1, x2, x3, x0], [y0, y1, y2, y3, y0], 'r-', linewidth=3.0, alpha=0.5)
 
+    # Draw the random blue rectangles
     for (y0, y1, x0, x1) in zip(*rects):
-        # Plot the inscribed rectangles
-        plt_ax.plot([x0.item(), x1.item()], [y0.item(), y0.item()], 'g-', alpha = .3)  # Bottom edge
-        plt_ax.plot([x0.item(), x1.item()], [y1.item(), y1.item()], 'g-', alpha = .3)  # Top edge
-        plt_ax.plot([x0.item(), x0.item()], [y0.item(), y1.item()], 'g-', alpha = .3)  # Left edge
-        plt_ax.plot([x1.item(), x1.item()], [y0.item(), y1.item()], 'g-', alpha = .3)  # Right edge
+        draw_random_blue_rectangle(y0, y1, x0, x1, plt_ax)
 
     # Set equal aspect ratio
     plt_ax.set_aspect('equal')
@@ -1306,7 +1330,13 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None, debug_plot=Fal
          y2 = qy2,
          x3 = qx3,
          y3 = qy3,
-     )
+    )
+
+    #No more interpolation! Messes up STD calculations...TODO: gain efficiency from this...
+    x0=x0.floor()
+    x1=x1.floor()
+    y0=y0.floor()
+    y1=y1.floor()
 
     if debug_plot:
         display_quads_and_rects(
@@ -1324,8 +1354,8 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None, debug_plot=Fal
     area = einops.rearrange(area, "  (OH OW R) -> 1 OH OW R", OH=OH, OW=OW)
 
     print("Internal Std's:")
-    rp.debug_comment(sum.shape)# --> torch.Size([3, 9, 9, 40])
-    rp.debug_comment(area.shape)# --> torch.Size([1, 9, 9, 40])
+    # rp.debug_comment(sum.shape)# --> torch.Size([3, 9, 9, 40])
+    # rp.debug_comment(area.shape)# --> torch.Size([1, 9, 9, 40])
     nzsum  = sum[0].flatten()
     nzarea = area.flatten()
     nzsum  = nzsum [nzarea!=0]
@@ -1417,7 +1447,7 @@ if __name__=="__main__":
     uvl_image = np.zeros((nnnn,nnnn,3))
     uvl_image[:,:,0] = xy_float_images(nnnn,nnnn)[0]
     uvl_image[:,:,1] = xy_float_images(nnnn,nnnn)[1]
-    # uvl_image[:,:,0] = uvl_image[:,:,0] * .7 + .3 *uvl_image[:,:,1]  #Makes it no longer sqrt2??
+    uvl_image[:,:,0] = uvl_image[:,:,0] * .7 + .3 *uvl_image[:,:,1]  #Makes it no longer sqrt2??
     uvl_image = uvl_image ** 4 #Add a bit of warpage
     # uvl_image += np.random.randn(*uvl_image.shape)*.000000000001 #DISASTER LOL don't do that...WAIT...why is this a problem??
 
