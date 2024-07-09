@@ -1,3 +1,4 @@
+from doctest import NORMALIZE_WHITESPACE
 from rp import *
 from distutils.errors import DistutilsModuleError
 import torch
@@ -65,9 +66,6 @@ def query_image_at_points(image, x, y):
 
     Checked: THIS FUNCTION IS CORRECT (checked via demo_query_image_at_points)
     """
-    
-    x=x.floor()
-    y=y.floor()
 
     assert image.ndim == 3, "image must be in CHW format"
     assert x.ndim == 1, 'x should be a vector'
@@ -217,6 +215,13 @@ class IntegralTexture:
         The bounds can be any real number - they wrap around the texture continuously
         TODO: I should have made the signature consistent with y coming first. Oh well. Be careful!
         """
+
+    
+        x0=x0.floor()
+        x1=x1.floor()
+        y0=y0.floor()
+        y1=y1.floor()
+
 
         assert x0.ndim == 1, 'x0 should be a vector'
         assert y0.ndim == 1, 'y0 should be a vector'
@@ -863,13 +868,27 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     Lxtr = xmr
 
     #Now combine the lower and upper h-traps into one flat list of h-traps
-    yb  = torch.stack((Lyb , Uyb ))
-    yt  = torch.stack((Lyt , Uyt ))
-    xbl = torch.stack((Lxbl, Uxbl))
-    xbr = torch.stack((Lxbr, Uxbr))
-    xtl = torch.stack((Lxtl, Uxtl))
-    xtr = torch.stack((Lxtr, Uxtr))
-    assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
+    yb  = torch.stack((Uyb ,))
+    yt  = torch.stack((Uyt ,))
+    xbl = torch.stack((Uxbl,))
+    xbr = torch.stack((Uxbr,))
+    xtl = torch.stack((Uxtl,))
+    xtr = torch.stack((Uxtr,))
+
+    # yb  = torch.stack((Lyb ,))
+    # yt  = torch.stack((Lyt ,))
+    # xbl = torch.stack((Lxbl,))
+    # xbr = torch.stack((Lxbr,))
+    # xtl = torch.stack((Lxtl,))
+    # xtr = torch.stack((Lxtr,))
+
+    # yb  = torch.stack((Lyb , Uyb ))
+    # yt  = torch.stack((Lyt , Uyt ))
+    # xbl = torch.stack((Lxbl, Uxbl))
+    # xbr = torch.stack((Lxbr, Uxbr))
+    # xtl = torch.stack((Lxtl, Uxtl))
+    # xtr = torch.stack((Lxtr, Uxtr))
+    # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
 
     #Flatten them - here 's' represents 'side' of which there are two (lower, upper)
     yb  = einops.rearrange(yb , 's n -> (n s)')
@@ -879,7 +898,7 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     xtl = einops.rearrange(xtl, 's n -> (n s)')
     xtr = einops.rearrange(xtr, 's n -> (n s)')
 
-    assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2*n,)
+    # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2*n,)
 
     #Final expensive internal assertions - make sure they're valid h-traps
     assert (yb <=yt ).all(), ((yb <=yt).sum(), (yb >=yt).sum(), (yb >yt).sum())
@@ -1287,6 +1306,7 @@ if __name__=="__main__":
     uvl_image = np.zeros((256,256,3))
     uvl_image[:,:,0] = xy_float_images(256,256)[0]
     uvl_image[:,:,1] = xy_float_images(256,256)[1]
+    uvl_image = uvl_image ** 4 #Add a bit of warpage
 
     if 1:
         # texture_image=get_checkerboard_image(height=512*3,width=512*3)
@@ -1294,7 +1314,7 @@ if __name__=="__main__":
         # texture_image[:]=-1
         # texture_image=rp.as_torch_image(texture_image)
         # texture_image=torch.randn_like(texture_image)
-        texture_image=torch.randn(3,1000,1000)
+        texture_image=torch.randn(3,3000,3000)
 
     # texture_image= load_image('/Users/ryan/Downloads/KevinSpinner/frame_0002_point-cloud_geo_geo-retexture.jpg')
 
@@ -1306,12 +1326,16 @@ if __name__=="__main__":
 
     out = output
 
+    std_mea = output.noisewarp.flatten()
+    std_mea = std_mea[std_mea!=0]
+
     rp.display_image(out.noisewarp/10+.5)
     ic(
         out.noisewarp.min(),
         out.noisewarp.max(),
         out.noisewarp.mean(),
         out.noisewarp.std(),
+        std_mea.std(),
     )
 
     input("Press Enter")
