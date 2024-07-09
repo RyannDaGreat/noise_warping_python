@@ -1039,10 +1039,12 @@ def demo_triangle_to_htraps_to_rects():
     plt.show()
 
 
-def tris_to_rects(w, ax, ay, bx, by, cx, cy):
+
+def tris_to_rects(w, ax, ay, bx, by, cx, cy, both_directions=False):
     """
     Given triangles, gives rectangles that approximate them both vertically and horizontally
     Checked: THIS FUNCTION IS CORRECT (checked via demo_tris_to_rects visually)
+    If both_directions is True, will do both h-traps and v-traps. After debugging, set to true maybe? Analyze it first...
     """
     #BATCH PRESERVES: Maybe. Entirely depends on its helper functions.
 
@@ -1053,18 +1055,22 @@ def tris_to_rects(w, ax, ay, bx, by, cx, cy):
         return y0, y1, x0, x1
 
     Hy0, Hy1, Hx0, Hx1 = helper(ax, ay, bx, by, cx, cy) #From h-traps
-    Vx0, Vx1, Vy0, Vy1 = helper(ay, ax, by, bx, cy, cx) #From v-traps: just use the h-trap algo and transpose x and y twice
+    if both_directions:
+        Vx0, Vx1, Vy0, Vy1 = helper(ay, ax, by, bx, cy, cx) #From v-traps: just use the h-trap algo and transpose x and y twice
+        y0 = torch.cat((Hy0, Vy0))
+        y1 = torch.cat((Hy1, Vy1))
+        x0 = torch.cat((Hx0, Vx0))
+        x1 = torch.cat((Hx1, Vx1))
 
-    y0 = torch.cat((Hy0, Vy0))
-    y1 = torch.cat((Hy1, Vy1))
-    x0 = torch.cat((Hx0, Vx0))
-    x1 = torch.cat((Hx1, Vx1))
-
-
-    y0 = torch.stack((Hy0, Vy0))
-    y1 = torch.stack((Hy1, Vy1))
-    x0 = torch.stack((Hx0, Vx0))
-    x1 = torch.stack((Hx1, Vx1))
+        y0 = torch.stack((Hy0, Vy0))
+        y1 = torch.stack((Hy1, Vy1))
+        x0 = torch.stack((Hx0, Vx0))
+        x1 = torch.stack((Hx1, Vx1))
+    else:
+        y0 = torch.stack((Hy0,    ))
+        y1 = torch.stack((Hy1,    ))
+        x0 = torch.stack((Hx0,    ))
+        x1 = torch.stack((Hx1,    ))
 
     y0 = einops.rearrange(y0, 't n -> (n t)')
     y1 = einops.rearrange(y1, 't n -> (n t)')
