@@ -216,7 +216,7 @@ class IntegralTexture:
         TODO: I should have made the signature consistent with y coming first. Oh well. Be careful!
         """
 
-    
+        #Messing with variants like ceil, round, ceil + floor etc doesn't help
         x0=x0.floor()
         x1=x1.floor()
         y0=y0.floor()
@@ -891,12 +891,53 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     # xtl = torch.stack((Lxtl,))
     # xtr = torch.stack((Lxtr,))
 
+    # #What if I duplicate them? Answer: std --> 1.414 aka √2
+    # yb  = torch.stack((Lyb ,) * 2)
+    # yt  = torch.stack((Lyt ,) * 2)
+    # xbl = torch.stack((Lxbl,) * 2)
+    # xbr = torch.stack((Lxbr,) * 2)
+    # xtl = torch.stack((Lxtl,) * 2)
+    # xtr = torch.stack((Lxtr,) * 2)
+
+    # #What if I triple them? Answer: std --> 1.7361 aka √3
+    #But this doesn't seem to affect it at *all* when we're not using a specially designed image???
+    # yb  = torch.stack((Lyb ,) * 3)
+    # yt  = torch.stack((Lyt ,) * 3)
+    # xbl = torch.stack((Lxbl,) * 3)
+    # xbr = torch.stack((Lxbr,) * 3)
+    # xtl = torch.stack((Lxtl,) * 3)
+    # xtr = torch.stack((Lxtr,) * 3)
+
+    # Try destroying one of the two tris to make sure it's passed properly...results in std=1...
+    # yb  = torch.stack((Lyb , Uyb  + .5))
+    # yt  = torch.stack((Lyt , Uyt  + .5))
+    # xbl = torch.stack((Lxbl, Uxbl + .5))
+    # xbr = torch.stack((Lxbr, Uxbr + .5))
+    # xtl = torch.stack((Lxtl, Uxtl + .5))
+    # xtr = torch.stack((Lxtr, Uxtr + .5))
+
+
+    #Always get std=√2 with this...indicating the two triangles are the same??
+    # yb  = torch.stack((Lyb , Uyb ))
+    # yt  = torch.stack((Lyt , Uyt ))
+    # xbl = torch.stack((Lxbl, Uxbl))
+    # xbr = torch.stack((Lxbr, Uxbr))
+    # xtl = torch.stack((Lxtl, Uxtl))
+    # xtr = torch.stack((Lxtr, Uxtr))
+
+    # print("LYB=",Lyb)
+    # print("UYB=",Uyb)
+    print("LYB=",(Lyb.floor()==Uyb.floor()).float().mean()) #77% of them are the same... doesn't explain much yet though most areas should still be 0 because of no boundary crossing...
+
+
     yb  = torch.stack((Lyb , Uyb ))
     yt  = torch.stack((Lyt , Uyt ))
     xbl = torch.stack((Lxbl, Uxbl))
     xbr = torch.stack((Lxbr, Uxbr))
     xtl = torch.stack((Lxtl, Uxtl))
     xtr = torch.stack((Lxtr, Uxtr))
+
+
     # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
 
     #Flatten them - here 's' represents 'side' of which there are two (lower, upper)
@@ -1068,6 +1109,28 @@ def demo_tris_to_rects():
     # Show the plot
     plt.show()
 
+
+def display_quads_and_rects(quads, rects):
+    # Create a figure and axis
+    fig, plt_ax = plt.subplots()
+
+    for (x0, y0, x1, y1, x2, y2, x3, y3) in zip(*quads):
+        plt_ax.plot([x0, x1, x2, x3, x0], [y0, y1, y2, y3, y0], 'k-',linewidth=7.0, alpha = .3)  # Quad
+
+    for (y0, y1, x0, x1) in zip(*rects):
+        # Plot the inscribed rectangles
+        plt_ax.plot([x0.item(), x1.item()], [y0.item(), y0.item()], 'g-', alpha = .3)  # Bottom edge
+        plt_ax.plot([x0.item(), x1.item()], [y1.item(), y1.item()], 'g-', alpha = .3)  # Top edge
+        plt_ax.plot([x0.item(), x0.item()], [y0.item(), y1.item()], 'g-', alpha = .3)  # Left edge
+        plt_ax.plot([x1.item(), x1.item()], [y0.item(), y1.item()], 'g-', alpha = .3)  # Right edge
+
+    # Set equal aspect ratio
+    plt_ax.set_aspect('equal')
+
+    # Show the plot
+    plt.show()
+
+
 def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     """
     This method is naive and pretty simple...it just turns quads into tris...
@@ -1078,6 +1141,10 @@ def quads_to_tris(x0, y0, x1, y1, x2, y2, x3, y3):
     #The pair must share a diagonal edge
     ax0, ay0, bx0, by0, cx0, cy0 = x0, y0, x2, y2, x1, y1 #First triangle
     ax1, ay1, bx1, by1, cx1, cy1 = x0, y0, x2, y2, x3, y3 #Second triangle
+
+    # #The pair must share a diagonal edge -- Wrong one...messes with STD...
+    # ax0, ay0, bx0, by0, cx0, cy0 = x0, y0, x1, y1, x3, y3 #First triangle
+    # ax1, ay1, bx1, by1, cx1, cy1 = x1, y1, x2, y2, x3, y3 #Second triangle
 
     assert x0.ndim == y0.ndim == x1.ndim == y1.ndim == x2.ndim == y2.ndim == x3.ndim == y3.ndim == 1
     assert len(x0) == len(y0) == len(x1) == len(y1) == len(x2) == len(y2) == len(x3) == len(y3)
@@ -1153,7 +1220,7 @@ def quads_to_rects(w, x0, y0, x1, y1, x2, y2, x3, y3):
 
 
 
-def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
+def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None, debug_plot=False):
 
     if not rp.is_torch_tensor(uv_image):
         uv_image = rp.as_rgb_image(rp.as_float_image(uv_image))
@@ -1218,19 +1285,34 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
 
 
     tic()
+    #Get quads
+    qx0=einops.rearrange(au, 'OH OW -> (OH OW)') 
+    qy0=einops.rearrange(av, 'OH OW -> (OH OW)') 
+    qx1=einops.rearrange(bu, 'OH OW -> (OH OW)') 
+    qy1=einops.rearrange(bv, 'OH OW -> (OH OW)') 
+    qx2=einops.rearrange(cu, 'OH OW -> (OH OW)')# --> torch.Size([3, 255, 255, 40])
+    qy2=einops.rearrange(cv, 'OH OW -> (OH OW)')# --> torch.Size([1, 255, 255, 40])
+    qx3=einops.rearrange(du, 'OH OW -> (OH OW)') 
+    qy3=einops.rearrange(dv, 'OH OW -> (OH OW)') 
 
     #My anisotropic filtering
     y0, y1, x0, x1 = quads_to_rects(
          w  = w, 
-         x0 = einops.rearrange(au, 'OH OW -> (OH OW)'), 
-         y0 = einops.rearrange(av, 'OH OW -> (OH OW)'), 
-         x1 = einops.rearrange(bu, 'OH OW -> (OH OW)'), 
-         y1 = einops.rearrange(bv, 'OH OW -> (OH OW)'), 
-         x2 = einops.rearrange(cu, 'OH OW -> (OH OW)'), 
-         y2 = einops.rearrange(cv, 'OH OW -> (OH OW)'), 
-         x3 = einops.rearrange(du, 'OH OW -> (OH OW)'),
-         y3 = einops.rearrange(dv, 'OH OW -> (OH OW)'), 
+         x0 = qx0,
+         y0 = qy0,
+         x1 = qx1,
+         y1 = qy1,
+         x2 = qx2,
+         y2 = qy2,
+         x3 = qx3,
+         y3 = qy3,
      )
+
+    if debug_plot:
+        display_quads_and_rects(
+            rects = (y0, y1, x0, x1), 
+            quads = (qx0,qy0,qx1,qy1,qx2,qy2,qx3,qy3),
+        )
 
 
     ptoc()
@@ -1240,6 +1322,20 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
 
     sum  = einops.rearrange(sum , "C (OH OW R) -> C OH OW R", OH=OH, OW=OW)
     area = einops.rearrange(area, "  (OH OW R) -> 1 OH OW R", OH=OH, OW=OW)
+
+    print("Internal Std's:")
+    rp.debug_comment(sum.shape)# --> torch.Size([3, 9, 9, 40])
+    rp.debug_comment(area.shape)# --> torch.Size([1, 9, 9, 40])
+    nzsum  = sum[0].flatten()
+    nzarea = area.flatten()
+    nzsum  = nzsum [nzarea!=0]
+    nzarea = nzarea[nzarea!=0]
+    ic(
+        (nzsum / nzarea ** .5).std(),
+        (nzsum / nzarea ** .5).mean(),
+        nzarea.mean(-1),
+    )
+
     sum  = sum .sum(-1)
     area = area.sum(-1)
     ryan_filter = sum/area
@@ -1308,14 +1404,22 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None):
 
 
 if __name__=="__main__":
-    uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutputKevinSpinner/UV_Label_Exr/Image0305.exr',use_cache=False)
-    uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    # uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutputKevinSpinner/UV_Label_Exr/Image0305.exr',use_cache=False)
+    # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    # uvl_image[:,:,0] *= uvl_image[:,:,2] == 0 #Where blue, destroy UV so we don't repeat anything...
+    # uvl_image[:,:,1] *= uvl_image[:,:,2] == 0 #Where blue, destroy UV so we don't repeat anything...
+
+    
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     
-    uvl_image = np.zeros((256,256,3))
-    uvl_image[:,:,0] = xy_float_images(256,256)[0]
-    uvl_image[:,:,1] = xy_float_images(256,256)[1]
+    nnnn=10
+    # nnnn=1024
+    uvl_image = np.zeros((nnnn,nnnn,3))
+    uvl_image[:,:,0] = xy_float_images(nnnn,nnnn)[0]
+    uvl_image[:,:,1] = xy_float_images(nnnn,nnnn)[1]
+    # uvl_image[:,:,0] = uvl_image[:,:,0] * .7 + .3 *uvl_image[:,:,1]  #Makes it no longer sqrt2??
     uvl_image = uvl_image ** 4 #Add a bit of warpage
+    # uvl_image += np.random.randn(*uvl_image.shape)*.000000000001 #DISASTER LOL don't do that...WAIT...why is this a problem??
 
     if 1:
         # texture_image=get_checkerboard_image(height=512*3,width=512*3)
@@ -1327,7 +1431,7 @@ if __name__=="__main__":
 
     # texture_image= load_image('/Users/ryan/Downloads/KevinSpinner/frame_0002_point-cloud_geo_geo-retexture.jpg')
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=5)
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=5, debug_plot=True)
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
