@@ -1440,22 +1440,22 @@ def uv_mapping_discretized(uv_image,tex_image,*,w=10,device=None, debug_plot=Fal
 
 
 if __name__=="__main__":
-    # uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutputKevinSpinner/UV_Label_Exr/Image0305.exr',use_cache=False)
-    # uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
-    # uvl_image[:,:,0] *= uvl_image[:,:,2] == 0 #Where blue, destroy UV so we don't repeat anything...
-    # uvl_image[:,:,1] *= uvl_image[:,:,2] == 0 #Where blue, destroy UV so we don't repeat anything...
+    uvl_image = rp.load_image('/Users/ryan/Downloads/BlenderOutputKevinSpinner/UV_Label_Exr/Image0305.exr',use_cache=False)
+    uvl_image = rp.resize_image_to_fit(uvl_image,256,256,interp='nearest')
+    uvl_image[:,:,0] *= uvl_image[:,:,2] == 0 #Where blue, destroy UV so we don't repeat anything...
+    uvl_image[:,:,1] *= uvl_image[:,:,2] == 0 #Where blue, destroy UV so we don't repeat anything...
 
     
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     
-    nnnn=4
-    # nnnn=1024
-    uvl_image = np.zeros((nnnn,nnnn,3))
-    uvl_image[:,:,0] = xy_float_images(nnnn,nnnn)[0]
-    uvl_image[:,:,1] = xy_float_images(nnnn,nnnn)[1]
-    uvl_image[:,:,0] = uvl_image[:,:,0] * .7 + .3 *uvl_image[:,:,1]  #Makes it no longer sqrt2??
-    uvl_image = uvl_image ** 4 #Add a bit of warpage
-    # uvl_image += np.random.randn(*uvl_image.shape) * .05 #DISASTER LOL don't do that...WAIT...why is this a problem??
+    # nnnn=4
+    # nnnn=256
+    # uvl_image = np.zeros((nnnn,nnnn,3))
+    # uvl_image[:,:,0] = xy_float_images(nnnn,nnnn)[0]
+    # uvl_image[:,:,1] = xy_float_images(nnnn,nnnn)[1]
+    # uvl_image[:,:,0] = uvl_image[:,:,0] * .7 + .3 *uvl_image[:,:,1]  #Makes it no longer sqrt2??
+    # uvl_image = uvl_image ** 4 #Add a bit of warpage
+    # # uvl_image += np.random.randn(*uvl_image.shape) * .05 #DISASTER LOL don't do that...WAIT...why is this a problem??
 
     if 1:
         # texture_image=get_checkerboard_image(height=512*3,width=512*3)
@@ -1464,10 +1464,11 @@ if __name__=="__main__":
         # texture_image=rp.as_torch_image(texture_image)
         # texture_image=torch.randn_like(texture_image)
         texture_image=torch.randn(3,15,15)
+        texture_image=torch.randn(3,1000,1000)
 
     # texture_image= load_image('/Users/ryan/Downloads/KevinSpinner/frame_0002_point-cloud_geo_geo-retexture.jpg')
 
-    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=20, debug_plot=True)
+    output = uv_mapping_discretized(uv_image = uvl_image, tex_image=texture_image, w=20, debug_plot=False)
     ic(texture_image.shape,output.ryan_filter.shape)
 
     output.noisewarp = output.ryan_filter*output.area**.5
