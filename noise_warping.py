@@ -305,6 +305,15 @@ class IntegralTexture:
         assert sum.shape ==(c,n,)
         assert area.shape==(  n,)
 
+        # #Sometimes DYQ and DXQ > 0. Thought this might help? Doesn't so squat though...# --> torch.Size([2601000])
+        # rp.debug_comment(dyq.shape)# --> torch.Size([3, 2601000])
+        # rp.debug_comment(sum.shape)# --> torch.Size([2601000])
+        # rp.debug_comment(area.shape)# --> torch.Size([2601000])
+        # sum[:,dyq>0] = 0 
+        # sum[:,dxq>0] = 0 
+        # area[dxq>0] = 0 
+        # area[dyq>0] = 0 
+
         ic(
             dyq.min(),
             dyq.max(),
@@ -322,9 +331,9 @@ class IntegralTexture:
             area.max(),
             self.cum_tex.min(),
             self.cum_tex.max(),
-            s(x1r, y1r).max(),
-            s(x1r, y1r).min(),
-            (+s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)    ).sum(),
+            s(x1r, y1r).max(),# --> torch.Size([2601000])
+            s(x1r, y1r).min(),# --> torch.Size([3, 2601000])
+            (+s(x1r, y1r)     +s(xw, y1r)*dxq     -s(x0r, y1r)    ).sum(),# --> torch.Size([2601000])
             (+s(x1r, yh )*dyq +s(xw, yh )*dxq*dyq -s(x0r, yh )*dyq).sum(),
             (-s(x1r, y0r)     -s(xw, y0r)*dxq     +s(x0r, y0r)    ).sum(),
             "Cheeteo",
@@ -868,12 +877,12 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     Lxtr = xmr
 
     #Now combine the lower and upper h-traps into one flat list of h-traps
-    yb  = torch.stack((Uyb ,))
-    yt  = torch.stack((Uyt ,))
-    xbl = torch.stack((Uxbl,))
-    xbr = torch.stack((Uxbr,))
-    xtl = torch.stack((Uxtl,))
-    xtr = torch.stack((Uxtr,))
+    # yb  = torch.stack((Uyb ,))
+    # yt  = torch.stack((Uyt ,))
+    # xbl = torch.stack((Uxbl,))
+    # xbr = torch.stack((Uxbr,))
+    # xtl = torch.stack((Uxtl,))
+    # xtr = torch.stack((Uxtr,))
 
     # yb  = torch.stack((Lyb ,))
     # yt  = torch.stack((Lyt ,))
@@ -882,12 +891,12 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     # xtl = torch.stack((Lxtl,))
     # xtr = torch.stack((Lxtr,))
 
-    # yb  = torch.stack((Lyb , Uyb ))
-    # yt  = torch.stack((Lyt , Uyt ))
-    # xbl = torch.stack((Lxbl, Uxbl))
-    # xbr = torch.stack((Lxbr, Uxbr))
-    # xtl = torch.stack((Lxtl, Uxtl))
-    # xtr = torch.stack((Lxtr, Uxtr))
+    yb  = torch.stack((Lyb , Uyb ))
+    yt  = torch.stack((Lyt , Uyt ))
+    xbl = torch.stack((Lxbl, Uxbl))
+    xbr = torch.stack((Lxbr, Uxbr))
+    xtl = torch.stack((Lxtl, Uxtl))
+    xtr = torch.stack((Lxtr, Uxtr))
     # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
 
     #Flatten them - here 's' represents 'side' of which there are two (lower, upper)
