@@ -884,12 +884,12 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
     # xtl = torch.stack((Uxtl,))
     # xtr = torch.stack((Uxtr,))
 
-    yb  = torch.stack((Lyb ,))
-    yt  = torch.stack((Lyt ,))
-    xbl = torch.stack((Lxbl,))
-    xbr = torch.stack((Lxbr,))
-    xtl = torch.stack((Lxtl,))
-    xtr = torch.stack((Lxtr,))
+    # yb  = torch.stack((Lyb ,))
+    # yt  = torch.stack((Lyt ,))
+    # xbl = torch.stack((Lxbl,))
+    # xbr = torch.stack((Lxbr,))
+    # xtl = torch.stack((Lxtl,))
+    # xtr = torch.stack((Lxtr,))
 
     # #What if I duplicate them? Answer: std --> 1.414 aka √2
     # yb  = torch.stack((Lyb ,) * 2)
@@ -927,15 +927,15 @@ def tris_to_htraps(ax, ay, bx, by, cx, cy):
 
     # print("LYB=",Lyb)
     # print("UYB=",Uyb)
-    print("LYB=",(Lyb.floor()==Uyb.floor()).float().mean()) #77% of them are the same... doesn't explain much yet though most areas should still be 0 because of no boundary crossing...
+    # print("LYB=",(Lyb.floor()==Uyb.floor()).float().mean()) #77% of them are the same... doesn't explain much yet though most areas should still be 0 because of no boundary crossing...
 
 
-    # yb  = torch.stack((Lyb , Uyb ))
-    # yt  = torch.stack((Lyt , Uyt ))
-    # xbl = torch.stack((Lxbl, Uxbl))
-    # xbr = torch.stack((Lxbr, Uxbr))
-    # xtl = torch.stack((Lxtl, Uxtl))
-    # xtr = torch.stack((Lxtr, Uxtr))
+    yb  = torch.stack((Lyb , Uyb ))
+    yt  = torch.stack((Lyt , Uyt ))
+    xbl = torch.stack((Lxbl, Uxbl))
+    xbr = torch.stack((Lxbr, Uxbr))
+    xtl = torch.stack((Lxtl, Uxtl))
+    xtr = torch.stack((Lxtr, Uxtr))
 
 
     # assert yb.shape==yt.shape==xbl.shape==xbr.shape==xtl.shape==xtr.shape==(2,n)
@@ -1127,7 +1127,7 @@ def display_quads_and_rects(quads, rects):
             b = np.random.random() * (1 - blueness) + blueness
             return (r, g, b)
 
-        rand = lambda: np.random.randn()  # So we can see if things overlap
+        rand = lambda: np.random.randn() * .01  # So we can see if things overlap
         x0, y0, x1, y1 = x0 + rand(), y0 + rand(), x1 + rand(), y1 + rand()
 
         # Generate a random blue color with a random blueness factor
@@ -1448,14 +1448,14 @@ if __name__=="__main__":
     
     #texture_image = rp.load_image('https://upload.wikimedia.org/wikipedia/en/7/7d/Lenna_%28test_image%29.png',use_cache=True)
     
-    nnnn=2
+    nnnn=4
     # nnnn=1024
     uvl_image = np.zeros((nnnn,nnnn,3))
     uvl_image[:,:,0] = xy_float_images(nnnn,nnnn)[0]
     uvl_image[:,:,1] = xy_float_images(nnnn,nnnn)[1]
     uvl_image[:,:,0] = uvl_image[:,:,0] * .7 + .3 *uvl_image[:,:,1]  #Makes it no longer sqrt2??
     uvl_image = uvl_image ** 4 #Add a bit of warpage
-    uvl_image += np.random.randn(*uvl_image.shape) #DISASTER LOL don't do that...WAIT...why is this a problem??
+    # uvl_image += np.random.randn(*uvl_image.shape) * .05 #DISASTER LOL don't do that...WAIT...why is this a problem??
 
     if 1:
         # texture_image=get_checkerboard_image(height=512*3,width=512*3)
@@ -1463,7 +1463,7 @@ if __name__=="__main__":
         # texture_image[:]=-1
         # texture_image=rp.as_torch_image(texture_image)
         # texture_image=torch.randn_like(texture_image)
-        texture_image=torch.randn(3,3000,3000)
+        texture_image=torch.randn(3,15,15)
 
     # texture_image= load_image('/Users/ryan/Downloads/KevinSpinner/frame_0002_point-cloud_geo_geo-retexture.jpg')
 
